@@ -161,7 +161,7 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
                   ? 'ring-1 ring-offset-1 ring-offset-slate-900' 
                   : 'border-slate-700/40 hover:border-slate-600'
               }`}
-              style={filterTier === t.name ? { borderColor: t.color, ringColor: t.color } : {}}
+              style={filterTier === t.name ? { borderColor: t.color, boxShadow: `0 0 0 1px ${t.color}` } : {}}
             >
               <div className="text-2xl font-bold tabular-nums" style={{ color: t.color }}>{t.count}</div>
               <TierBadge tier={t.name} size="xs" />
