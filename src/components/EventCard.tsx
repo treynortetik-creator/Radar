@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { TierBadge } from './TierBadge';
+import { TierBadge, ThreatBar } from './TierBadge';
 import { CompetitorBadge } from './CompetitorBadge';
+import { ExternalLinkIcon, ChevronIcon, ClockIcon, TargetIcon, SignalIcon } from './icons';
 
 interface Event {
   id: number;
@@ -30,7 +31,7 @@ const COMPETITOR_COLORS: Record<string, string> = {
   'CarePredict': '#F9CB9C',
 };
 
-const borderClasses: Record<string, string> = {
+const cardClasses: Record<string, string> = {
   Critical: 'border-l-critical glow-critical',
   High: 'border-l-high glow-high',
   Medium: 'border-l-medium',
@@ -41,21 +42,47 @@ function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   try {
     const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
     return dateStr;
   }
 }
 
-function ThreatDots({ level }: { level: number }) {
+function formatFullDate(dateStr: string): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+// Theme badge styling
+const themeColors: Record<string, { bg: string; text: string; border: string }> = {
+  'Product/Feature': { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
+  'Customer Win': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
+  'Partnership/Integration': { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/20' },
+  'Funding/Corporate': { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
+  'Competitive Attack': { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
+  'Pricing/Packaging': { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
+  'Event/Conference': { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' },
+  'Thought Leadership': { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20' },
+  'Job Posting': { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20' },
+};
+
+function ThemeBadge({ theme }: { theme: string }) {
+  const colors = themeColors[theme] || { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20' };
   return (
-    <span className="inline-flex gap-0.5">
-      {[1, 2, 3].map(i => (
-        <span 
-          key={i} 
-          className={`w-1.5 h-1.5 rounded-full ${i <= level ? 'bg-red-400' : 'bg-slate-700'}`} 
-        />
-      ))}
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${colors.bg} ${colors.text} ${colors.border}`}>
+      {theme}
     </span>
   );
 }
@@ -66,75 +93,150 @@ export function EventCard({ event }: { event: Event }) {
 
   return (
     <div 
-      className={`bg-slate-800/40 border border-slate-700/40 rounded-lg card-hover cursor-pointer ${borderClasses[event.priority_tier] || ''}`}
+      className={`
+        card-base cursor-pointer group
+        ${cardClasses[event.priority_tier] || ''}
+      `}
       onClick={() => setExpanded(!expanded)}
     >
       <div className="p-4">
         {/* Top row: badges and date */}
-        <div className="flex items-center gap-2 mb-2.5">
-          <TierBadge tier={event.priority_tier} />
-          <CompetitorBadge competitor={event.competitor} />
-          <span className="text-[11px] text-slate-500 bg-slate-700/40 px-2 py-0.5 rounded-md">{event.theme}</span>
-          <span className="ml-auto text-[11px] text-slate-500 tabular-nums shrink-0">
-            {formatDate(event.published_at)}
-          </span>
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <TierBadge tier={event.priority_tier} size="sm" />
+          <CompetitorBadge competitor={event.competitor} size="sm" />
+          <ThemeBadge theme={event.theme} />
+          
+          <div className="flex items-center gap-1.5 ml-auto text-slate-500">
+            <ClockIcon className="w-3 h-3" />
+            <span className="text-[11px] tabular-nums shrink-0">
+              {formatDate(event.published_at)}
+            </span>
+          </div>
         </div>
         
         {/* Title */}
-        <h3 className="text-[15px] font-medium text-slate-100 leading-snug mb-1.5 line-clamp-2">
+        <h3 className="text-[15px] font-semibold text-slate-100 leading-snug mb-2 line-clamp-2 group-hover:text-white transition-colors">
           {event.title}
         </h3>
         
         {/* Key takeaway */}
         {event.key_takeaway && (
-          <p className="text-[13px] text-slate-400 leading-relaxed line-clamp-2">{event.key_takeaway}</p>
+          <p className="text-[13px] text-slate-400 leading-relaxed line-clamp-2 mb-3">
+            {event.key_takeaway}
+          </p>
         )}
 
-        {/* Expand indicator */}
-        <div className="flex items-center justify-between mt-2">
-          <div className="flex items-center gap-3 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1">
-              Threat <ThreatDots level={event.threat_level} />
-            </span>
-            <span>Score: {event.priority_score?.toFixed(1)}</span>
+        {/* Bottom row: metrics */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4 text-[11px] text-slate-500">
+            {/* Threat level */}
+            <div className="flex items-center gap-1.5">
+              <span className="uppercase tracking-wider font-medium">Threat</span>
+              <ThreatBar level={event.threat_level} max={3} />
+            </div>
+            
+            {/* Priority score */}
+            <div className="flex items-center gap-1.5">
+              <SignalIcon strength={Math.ceil(event.priority_score / 25)} className="w-3.5 h-3.5 text-slate-600" />
+              <span className="font-mono font-medium text-slate-400">{event.priority_score?.toFixed(1)}</span>
+            </div>
           </div>
-          <span className={`text-[11px] text-slate-500 transition-transform duration-150 ${expanded ? 'rotate-180' : ''}`}>
-            ▾
-          </span>
+          
+          {/* Expand indicator */}
+          <div 
+            className={`
+              flex items-center gap-1 text-[11px] text-slate-500 
+              transition-all duration-200 group-hover:text-slate-400
+            `}
+          >
+            <span className="hidden sm:inline">{expanded ? 'Less' : 'More'}</span>
+            <ChevronIcon 
+              direction={expanded ? 'up' : 'down'} 
+              className="w-4 h-4 transition-transform duration-200" 
+            />
+          </div>
         </div>
       </div>
 
       {/* Expanded details */}
       {expanded && (
-        <div className="expand-content px-4 pb-4 pt-0">
-          <div className="pt-3 border-t border-slate-700/40 space-y-3">
+        <div className="expand-content px-4 pb-4">
+          <div className="pt-4 border-t border-slate-700/40 space-y-4">
+            {/* Summary */}
             {event.summary && (
               <div>
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Summary</span>
-                <p className="text-[13px] text-slate-300 mt-1 leading-relaxed">{event.summary}</p>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Intel Summary</span>
+                </div>
+                <p className="text-[13px] text-slate-300 leading-relaxed">{event.summary}</p>
               </div>
             )}
-            <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12px]">
-              <span className="text-slate-500">Route: <span className="text-slate-300 font-medium">{event.route_to}</span></span>
-              <span className="text-slate-500">Threat: <span className="text-slate-300 font-medium">{event.threat_level}/3</span></span>
-              <span className="text-slate-500">Relevance: <span className="text-slate-300 font-medium">{event.strategic_relevance}/3</span></span>
-              <span className="text-slate-500">Score: <span className="text-slate-300 font-medium">{event.priority_score?.toFixed(1)}</span></span>
+            
+            {/* Metrics grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <MetricItem label="Route To" value={event.route_to} />
+              <MetricItem label="Threat Level" value={`${event.threat_level}/3`} />
+              <MetricItem label="Relevance" value={`${event.strategic_relevance}/3`} />
+              <MetricItem label="Published" value={formatFullDate(event.published_at)} />
             </div>
+            
+            {/* Source link */}
             <a 
               href={event.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[12px] text-blue-400 hover:text-blue-300 font-medium transition-colors"
+              className="
+                inline-flex items-center gap-2 px-3 py-2 rounded-lg
+                text-[12px] font-medium text-amber-400 
+                bg-amber-500/10 border border-amber-500/20
+                hover:bg-amber-500/15 hover:border-amber-500/30
+                transition-all duration-150
+              "
               onClick={(e) => e.stopPropagation()}
             >
-              View Source
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-              </svg>
+              <span>View Source</span>
+              <ExternalLinkIcon className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function MetricItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-slate-900/40 rounded-lg px-3 py-2">
+      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-medium mb-0.5">{label}</div>
+      <div className="text-xs text-slate-300 font-medium">{value}</div>
+    </div>
+  );
+}
+
+// Compact event card for lists
+export function EventCardCompact({ event }: { event: Event }) {
+  return (
+    <a 
+      href={event.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`
+        flex items-start gap-3 p-3 rounded-lg
+        bg-slate-800/30 border border-slate-700/30
+        hover:bg-slate-800/50 hover:border-slate-700/50
+        transition-all duration-150
+        ${cardClasses[event.priority_tier] || ''}
+      `}
+    >
+      <TierBadge tier={event.priority_tier} size="xs" />
+      <div className="flex-1 min-w-0">
+        <h4 className="text-sm font-medium text-slate-200 line-clamp-1">{event.title}</h4>
+        <div className="flex items-center gap-2 mt-1">
+          <CompetitorBadge competitor={event.competitor} size="xs" showDot={false} />
+          <span className="text-[10px] text-slate-500">{formatDate(event.published_at)}</span>
+        </div>
+      </div>
+      <ExternalLinkIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+    </a>
   );
 }

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, use } from 'react';
 import { EventCard } from '@/components/EventCard';
-import { TierBadge } from '@/components/TierBadge';
+import { TierBadge, ThreatBar } from '@/components/TierBadge';
+import { CompetitorAvatar, COMPETITOR_COLORS } from '@/components/CompetitorBadge';
+import { LoadingRadar, ChevronIcon, TargetIcon, ShieldIcon, ClockIcon } from '@/components/icons';
 import Link from 'next/link';
 
 interface CompetitorData {
@@ -33,13 +35,13 @@ interface Event {
   content_type_weight: number;
 }
 
-const COMPETITOR_COLORS: Record<string, string> = {
-  'inspiren': '#CC4125',
-  'sage': '#B4A7D6',
-  'virtusense': '#9900FF',
-  'amba': '#FF9900',
-  'nobi': '#B7E1CD',
-  'carepredict': '#F9CB9C',
+const COMPETITOR_COLORS_MAP: Record<string, { primary: string; secondary: string }> = {
+  'inspiren': { primary: '#CC4125', secondary: '#ff5a3c' },
+  'sage': { primary: '#B4A7D6', secondary: '#c9bfe6' },
+  'virtusense': { primary: '#9900FF', secondary: '#b84dff' },
+  'amba': { primary: '#FF9900', secondary: '#ffb333' },
+  'nobi': { primary: '#B7E1CD', secondary: '#d0eedf' },
+  'carepredict': { primary: '#F9CB9C', secondary: '#fce0bf' },
 };
 
 const COMPETITOR_NAMES: Record<string, string> = {
@@ -64,7 +66,7 @@ function formatDate(dateStr: string): string {
 export default function CompetitorPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const competitorName = COMPETITOR_NAMES[slug] || slug;
-  const color = COMPETITOR_COLORS[slug] || '#94a3b8';
+  const colors = COMPETITOR_COLORS_MAP[slug] || { primary: '#94a3b8', secondary: '#b0bec5' };
   
   const [info, setInfo] = useState<CompetitorData | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
@@ -85,18 +87,28 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 gap-3">
-        <div className="w-5 h-5 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
-        <span className="text-sm text-slate-500">Loading competitor profile...</span>
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <LoadingRadar className="w-16 h-16 text-amber-500" />
+        <span className="text-sm text-slate-500 font-medium">Loading competitor profile...</span>
       </div>
     );
   }
+  
   if (!info) {
     return (
-      <div className="text-center py-20">
-        <div className="text-4xl mb-3">🔍</div>
-        <div className="text-slate-400 font-medium">Competitor not found</div>
-        <Link href="/" className="text-sm text-blue-400 hover:text-blue-300 mt-2 inline-block">← Back to Dashboard</Link>
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
+          <TargetIcon className="w-8 h-8 text-slate-600" />
+        </div>
+        <div className="text-lg font-semibold text-slate-300 mb-1">Competitor not found</div>
+        <div className="text-sm text-slate-500 mb-4">No data available for this competitor</div>
+        <Link 
+          href="/" 
+          className="text-sm text-amber-400 hover:text-amber-300 font-medium flex items-center gap-1"
+        >
+          <ChevronIcon direction="left" className="w-4 h-4" />
+          Back to Dashboard
+        </Link>
       </div>
     );
   }
@@ -129,47 +141,66 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
     <div className="space-y-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-slate-500">
-        <Link href="/" className="hover:text-slate-300 transition-colors">Dashboard</Link>
-        <span>/</span>
-        <span className="text-slate-300">{competitorName}</span>
+        <Link href="/" className="hover:text-amber-400 transition-colors">Command Center</Link>
+        <ChevronIcon direction="right" className="w-3 h-3" />
+        <span style={{ color: colors.secondary }}>{competitorName}</span>
       </div>
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div 
-          className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold shadow-lg" 
-          style={{ backgroundColor: `${color}20`, color: color, boxShadow: `0 4px 20px -5px ${color}30` }}
-        >
-          {competitorName[0]}
-        </div>
+        <CompetitorAvatar competitor={competitorName} size="lg" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">{competitorName}</h1>
-          <p className="text-sm text-slate-500">{info.total_events} events tracked · Last activity: {formatDate(info.latest_event)}</p>
+          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">{competitorName}</h1>
+          <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <TargetIcon className="w-3.5 h-3.5" />
+              {info.total_events} events tracked
+            </span>
+            <span className="text-slate-700">•</span>
+            <span className="flex items-center gap-1.5">
+              <ClockIcon className="w-3.5 h-3.5" />
+              Last activity: {formatDate(info.latest_event)}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Threat Distribution */}
-      <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-5">
+      <div className="card-base p-5">
         <h2 className="text-sm font-semibold text-slate-200 mb-4">Threat Distribution</h2>
+        
+        {/* Tier buttons */}
         <div className="grid grid-cols-4 gap-3 mb-4">
           {tiers.map(t => (
             <button 
               key={t.name} 
               onClick={() => setFilterTier(prev => prev === t.name ? '' : t.name)}
-              className={`text-center p-3 rounded-lg border transition-all ${
-                filterTier === t.name 
-                  ? 'ring-1 ring-offset-1 ring-offset-slate-900' 
+              className={`
+                text-center p-4 rounded-xl border transition-all duration-200
+                ${filterTier === t.name 
+                  ? 'ring-2 ring-offset-2 ring-offset-[#0b1120]' 
                   : 'border-slate-700/40 hover:border-slate-600'
-              }`}
-              style={filterTier === t.name ? { borderColor: t.color, boxShadow: `0 0 0 1px ${t.color}` } : {}}
+                }
+              `}
+              style={filterTier === t.name ? { 
+                borderColor: t.color, 
+                backgroundColor: `${t.color}15`,
+                ['--tw-ring-color' as any]: t.color,
+              } : {}}
             >
-              <div className="text-2xl font-bold tabular-nums" style={{ color: t.color }}>{t.count}</div>
+              <div 
+                className="text-2xl font-bold tabular-nums mb-1" 
+                style={{ color: t.color }}
+              >
+                {t.count}
+              </div>
               <TierBadge tier={t.name} size="xs" />
             </button>
           ))}
         </div>
+        
         {/* Progress bar */}
-        <div className="flex h-2.5 rounded-full overflow-hidden bg-slate-700/30">
+        <div className="flex h-3 rounded-full overflow-hidden bg-slate-800/60">
           {tiers.filter(t => t.count > 0).map(t => (
             <div 
               key={t.name}
@@ -177,6 +208,7 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
               style={{ 
                 backgroundColor: t.color, 
                 width: `${(t.count / info.total_events) * 100}%`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.1)`,
               }}
             />
           ))}
@@ -188,28 +220,36 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
         {/* Quick Stats */}
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-200">Quick Stats</h2>
-          <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 space-y-4">
+          <div className="card-base p-4 space-y-4">
             <div>
-              <div className="text-xs text-slate-500 mb-1">Avg Priority Score</div>
-              <div className="text-xl font-bold text-slate-200 tabular-nums">{info.avg_priority?.toFixed(1)}</div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Avg Priority Score</div>
+              <div className="text-2xl font-bold text-slate-200 tabular-nums">{info.avg_priority?.toFixed(1)}</div>
             </div>
-            <div className="border-t border-slate-700/40 pt-4">
-              <div className="text-xs text-slate-500 mb-1">High+ Threat Rate</div>
-              <div className="text-xl font-bold tabular-nums" style={{ color: threatRate > 50 ? '#ef4444' : threatRate > 30 ? '#f97316' : '#22c55e' }}>
+            <div className="divider" />
+            <div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">High+ Threat Rate</div>
+              <div 
+                className="text-2xl font-bold tabular-nums"
+                style={{ color: threatRate > 50 ? '#ef4444' : threatRate > 30 ? '#f97316' : '#22c55e' }}
+              >
                 {threatRate}%
               </div>
             </div>
-            <div className="border-t border-slate-700/40 pt-4">
-              <div className="text-xs text-slate-500 mb-2">Top Themes</div>
-              <div className="space-y-2">
+            <div className="divider" />
+            <div>
+              <div className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">Top Themes</div>
+              <div className="space-y-2.5">
                 {themes.map(([theme, count]) => (
                   <div key={theme} className="flex items-center justify-between">
                     <span className="text-xs text-slate-400 truncate mr-2">{theme}</span>
                     <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+                      <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                         <div 
-                          className="h-full rounded-full" 
-                          style={{ width: `${(count / info.total_events) * 100}%`, backgroundColor: color }} 
+                          className="h-full rounded-full transition-all duration-500" 
+                          style={{ 
+                            width: `${(count / info.total_events) * 100}%`, 
+                            backgroundColor: colors.primary,
+                          }} 
                         />
                       </div>
                       <span className="text-xs text-slate-500 tabular-nums w-6 text-right">{count}</span>
@@ -225,12 +265,15 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
         <div className="lg:col-span-2 space-y-3">
           <h2 className="text-sm font-semibold text-slate-200">Key Intelligence</h2>
           {keyTakeaways.length > 0 ? (
-            <div className="space-y-2">
-              {keyTakeaways.map((event, i) => (
-                <div key={event.id} className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4">
+            <div className="space-y-3">
+              {keyTakeaways.map((event) => (
+                <div key={event.id} className="card-base p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <TierBadge tier={event.priority_tier} size="xs" />
-                    <span className="text-[11px] text-slate-500">{formatDate(event.published_at)}</span>
+                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                      <ClockIcon className="w-3 h-3" />
+                      {formatDate(event.published_at)}
+                    </span>
                   </div>
                   <p className="text-sm text-slate-300 leading-relaxed">{event.key_takeaway}</p>
                   <p className="text-xs text-slate-500 mt-2 truncate">{event.title}</p>
@@ -238,7 +281,8 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
               ))}
             </div>
           ) : (
-            <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-8 text-center">
+            <div className="card-base p-8 text-center">
+              <ShieldIcon variant="default" className="w-8 h-8 text-slate-600 mx-auto mb-2" />
               <p className="text-sm text-slate-500">No high-priority takeaways yet</p>
             </div>
           )}
@@ -255,14 +299,18 @@ export default function CompetitorPage({ params }: { params: Promise<{ slug: str
           {filterTier && (
             <button 
               onClick={() => setFilterTier('')}
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+              className="btn-ghost text-xs"
             >
               Show all
             </button>
           )}
         </div>
-        <div className="space-y-2">
-          {filteredEvents.map(e => <EventCard key={e.id} event={e} />)}
+        <div className="space-y-3">
+          {filteredEvents.map((e, i) => (
+            <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
+              <EventCard event={e} />
+            </div>
+          ))}
         </div>
       </section>
     </div>

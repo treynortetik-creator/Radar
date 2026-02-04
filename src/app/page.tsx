@@ -3,6 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EventCard } from '@/components/EventCard';
 import { CompetitorPill } from '@/components/CompetitorBadge';
+import { TierDot } from '@/components/TierBadge';
+import { 
+  LoadingRadar, 
+  SearchIcon, 
+  FilterIcon, 
+  ChevronIcon,
+  TargetIcon,
+  ShieldIcon,
+  SignalIcon,
+} from '@/components/icons';
 
 interface Event {
   id: number;
@@ -37,73 +47,83 @@ const THEMES = [
   'Event/Conference', 'Thought Leadership', 'Job Posting'
 ];
 
+// Stat card component with tactical styling
 function StatCard({ 
   label, 
   value, 
-  color = 'slate', 
+  variant = 'default', 
   subtext,
-  icon,
+  icon: Icon,
 }: { 
   label: string; 
   value: number | string; 
-  color?: string; 
+  variant?: 'default' | 'critical' | 'high' | 'medium' | 'low' | 'amber'; 
   subtext?: string;
-  icon?: string;
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
-  const colorMap: Record<string, { bg: string; border: string; text: string; label: string }> = {
-    slate: { bg: 'bg-slate-800/60', border: 'border-slate-700/40', text: 'text-slate-100', label: 'text-slate-500' },
-    red: { bg: 'bg-red-500/5', border: 'border-red-500/20', text: 'text-red-400', label: 'text-red-400/60' },
-    orange: { bg: 'bg-orange-500/5', border: 'border-orange-500/20', text: 'text-orange-400', label: 'text-orange-400/60' },
-    yellow: { bg: 'bg-yellow-500/5', border: 'border-yellow-500/20', text: 'text-yellow-400', label: 'text-yellow-400/60' },
-    green: { bg: 'bg-emerald-500/5', border: 'border-emerald-500/20', text: 'text-emerald-400', label: 'text-emerald-400/60' },
+  const variants: Record<string, { text: string; accent: string; glow: string }> = {
+    default: { text: 'text-slate-100', accent: 'text-slate-500', glow: '' },
+    critical: { text: 'text-red-400', accent: 'text-red-400/60', glow: 'shadow-[0_0_20px_-8px_rgba(239,68,68,0.4)]' },
+    high: { text: 'text-orange-400', accent: 'text-orange-400/60', glow: '' },
+    medium: { text: 'text-yellow-400', accent: 'text-yellow-400/60', glow: '' },
+    low: { text: 'text-emerald-400', accent: 'text-emerald-400/60', glow: '' },
+    amber: { text: 'text-amber-400', accent: 'text-amber-400/60', glow: 'shadow-[0_0_20px_-8px_rgba(245,158,11,0.3)]' },
   };
-  const c = colorMap[color] || colorMap.slate;
+  
+  const v = variants[variant];
   
   return (
-    <div className={`${c.bg} border ${c.border} rounded-xl p-4 relative overflow-hidden`}>
-      {icon && <span className="absolute top-3 right-3 text-lg opacity-40">{icon}</span>}
-      <div className={`text-3xl font-bold ${c.text} tracking-tight`}>{value}</div>
-      <div className={`text-xs font-medium ${c.label} mt-1`}>{label}</div>
+    <div className={`stat-card ${v.glow}`}>
+      {Icon && (
+        <div className="stat-icon">
+          <Icon className="w-8 h-8" />
+        </div>
+      )}
+      <div className={`stat-value ${v.text}`}>{value}</div>
+      <div className={`stat-label ${v.accent}`}>{label}</div>
       {subtext && <div className="text-[10px] text-slate-600 mt-0.5">{subtext}</div>}
     </div>
   );
 }
 
+// Section header with collapsible state
 function SectionHeader({ 
   label, 
   count, 
-  color, 
+  tier, 
   collapsed, 
   onToggle 
 }: { 
   label: string; 
   count: number; 
-  color: string; 
+  tier: string; 
   collapsed: boolean; 
   onToggle: () => void;
 }) {
-  const colorClasses: Record<string, string> = {
-    red: 'text-red-400 border-red-500/30',
-    orange: 'text-orange-400 border-orange-500/30',
-    yellow: 'text-yellow-400 border-yellow-500/30',
-    green: 'text-emerald-400 border-emerald-500/30',
+  const colors: Record<string, { text: string; border: string; bg: string }> = {
+    Critical: { text: 'text-red-400', border: 'border-red-500/30', bg: 'bg-red-500/10' },
+    High: { text: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-500/10' },
+    Medium: { text: 'text-yellow-400', border: 'border-yellow-500/30', bg: 'bg-yellow-500/10' },
+    Low: { text: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' },
   };
-  const c = colorClasses[color] || 'text-slate-400 border-slate-600';
+  const c = colors[tier] || { text: 'text-slate-400', border: 'border-slate-600', bg: 'bg-slate-500/10' };
   
   return (
     <button 
       onClick={onToggle}
-      className={`flex items-center gap-3 w-full py-2 border-b ${c} mb-4 group`}
+      className={`section-header ${c.border} group w-full`}
     >
-      <span className={`text-xs font-semibold uppercase tracking-wider ${c.split(' ')[0]}`}>
+      <TierDot tier={tier} size="md" />
+      <span className={`text-xs font-bold uppercase tracking-wider ${c.text}`}>
         {label}
       </span>
-      <span className={`text-xs font-medium px-2 py-0.5 rounded-full bg-slate-800 ${c.split(' ')[0]}`}>
+      <span className={`section-count ${c.text} ${c.bg}`}>
         {count}
       </span>
-      <span className={`ml-auto text-xs text-slate-500 transition-transform duration-200 ${collapsed ? '-rotate-90' : ''}`}>
-        ▾
-      </span>
+      <ChevronIcon 
+        direction={collapsed ? 'right' : 'down'}
+        className={`ml-auto w-4 h-4 text-slate-500 group-hover:text-slate-400 transition-transform duration-200`}
+      />
     </button>
   );
 }
@@ -184,17 +204,40 @@ export default function Dashboard() {
     setPage(1);
   };
 
-  const hasActiveFilters = search || competitor || tier || theme;
+  const hasActiveFilters = !!(search || competitor || tier || theme);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Command Center</h1>
+          <p className="text-sm text-slate-500 mt-1">Real-time competitive intelligence monitoring</p>
+        </div>
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setSearch(''); setCompetitor(''); setTier(''); setTheme(''); }}
+            className="btn-ghost text-xs flex items-center gap-1.5"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Clear all filters
+          </button>
+        )}
+      </div>
+      
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <StatCard label="Total Events" value={totalAll || total} icon="📡" subtext={hasActiveFilters ? `${total} filtered` : undefined} />
-        <StatCard label="Critical" value={totalCritical} color="red" icon="🔴" />
-        <StatCard label="High" value={totalHigh} color="orange" icon="🟠" />
-        <StatCard label="Medium" value={totalMedium} color="yellow" icon="🟡" />
-        <StatCard label="Low" value={totalLow} color="green" icon="🟢" />
+        <StatCard 
+          label="Total Intel" 
+          value={totalAll || total} 
+          variant="amber"
+          icon={TargetIcon}
+          subtext={hasActiveFilters ? `${total} filtered` : undefined} 
+        />
+        <StatCard label="Critical" value={totalCritical} variant="critical" icon={ShieldIcon} />
+        <StatCard label="High" value={totalHigh} variant="high" />
+        <StatCard label="Medium" value={totalMedium} variant="medium" />
+        <StatCard label="Low" value={totalLow} variant="low" />
       </div>
 
       {/* Competitor Pills */}
@@ -212,72 +255,68 @@ export default function Dashboard() {
       </div>
 
       {/* Search & Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-wrap gap-3 items-center">
+        {/* Search input */}
         <div className="relative flex-1 min-w-[220px]">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            placeholder="Search events..."
+            placeholder="Search intel..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-slate-800/60 border border-slate-700/40 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500/30 transition-all"
+            className="input-base pl-10"
           />
         </div>
-        <select 
-          value={tier} 
-          onChange={(e) => setTier(e.target.value)}
-          className="bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-slate-500"
-        >
-          <option value="">All Tiers</option>
-          {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select 
-          value={theme} 
-          onChange={(e) => setTheme(e.target.value)}
-          className="bg-slate-800/60 border border-slate-700/40 rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-slate-500"
-        >
-          <option value="">All Themes</option>
-          {THEMES.map(t => <option key={t} value={t}>{t}</option>)}
-        </select>
-        {hasActiveFilters && (
-          <button
-            onClick={() => { setSearch(''); setCompetitor(''); setTier(''); setTheme(''); }}
-            className="text-xs text-slate-400 hover:text-slate-200 px-2 py-2 transition-colors"
+        
+        {/* Filter dropdowns */}
+        <div className="flex items-center gap-2">
+          <FilterIcon className="w-4 h-4 text-slate-500" />
+          <select 
+            value={tier} 
+            onChange={(e) => setTier(e.target.value)}
+            className="input-base py-2 min-w-[120px]"
           >
-            Clear filters
-          </button>
-        )}
+            <option value="">All Tiers</option>
+            {TIERS.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select 
+            value={theme} 
+            onChange={(e) => setTheme(e.target.value)}
+            className="input-base py-2 min-w-[140px]"
+          >
+            <option value="">All Themes</option>
+            {THEMES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Events */}
       {loading ? (
-        <div className="flex items-center justify-center py-20 gap-3">
-          <div className="w-5 h-5 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
-          <span className="text-sm text-slate-500">Loading events...</span>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <LoadingRadar className="w-16 h-16 text-amber-500" />
+          <span className="text-sm text-slate-500 font-medium">Scanning intel feeds...</span>
         </div>
       ) : events.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="text-4xl mb-3">🔍</div>
-          <div className="text-slate-400 font-medium">No events found</div>
-          <div className="text-sm text-slate-500 mt-1">Try adjusting your filters</div>
-        </div>
+        <EmptyState hasFilters={hasActiveFilters} />
       ) : (
         <div className="space-y-8">
           {/* Critical */}
           {critical.length > 0 && (
-            <section>
+            <section className="animate-fade-in">
               <SectionHeader 
                 label="Critical Priority" 
                 count={critical.length} 
-                color="red" 
+                tier="Critical" 
                 collapsed={!!collapsedSections.critical}
                 onToggle={() => toggleSection('critical')}
               />
               {!collapsedSections.critical && (
-                <div className="space-y-2">
-                  {critical.map(e => <EventCard key={e.id} event={e} />)}
+                <div className="space-y-3">
+                  {critical.map((e, i) => (
+                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
+                      <EventCard event={e} />
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
@@ -285,17 +324,21 @@ export default function Dashboard() {
 
           {/* High */}
           {high.length > 0 && (
-            <section>
+            <section className="animate-fade-in">
               <SectionHeader 
                 label="High Priority" 
                 count={high.length} 
-                color="orange" 
+                tier="High" 
                 collapsed={!!collapsedSections.high}
                 onToggle={() => toggleSection('high')}
               />
               {!collapsedSections.high && (
-                <div className="space-y-2">
-                  {high.map(e => <EventCard key={e.id} event={e} />)}
+                <div className="space-y-3">
+                  {high.map((e, i) => (
+                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
+                      <EventCard event={e} />
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
@@ -303,17 +346,21 @@ export default function Dashboard() {
 
           {/* Medium */}
           {medium.length > 0 && (
-            <section>
+            <section className="animate-fade-in">
               <SectionHeader 
                 label="Medium Priority" 
                 count={medium.length} 
-                color="yellow" 
+                tier="Medium" 
                 collapsed={!!collapsedSections.medium}
                 onToggle={() => toggleSection('medium')}
               />
               {!collapsedSections.medium && (
-                <div className="space-y-2">
-                  {medium.map(e => <EventCard key={e.id} event={e} />)}
+                <div className="space-y-3">
+                  {medium.map((e, i) => (
+                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
+                      <EventCard event={e} />
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
@@ -321,17 +368,21 @@ export default function Dashboard() {
 
           {/* Low */}
           {low.length > 0 && (
-            <section>
+            <section className="animate-fade-in">
               <SectionHeader
                 label="Low Priority"
                 count={low.length}
-                color="green"
+                tier="Low"
                 collapsed={!!collapsedSections.low}
                 onToggle={() => toggleSection('low')}
               />
               {!collapsedSections.low && (
-                <div className="space-y-2">
-                  {low.map(e => <EventCard key={e.id} event={e} />)}
+                <div className="space-y-3">
+                  {low.map((e, i) => (
+                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
+                      <EventCard event={e} />
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
@@ -339,71 +390,116 @@ export default function Dashboard() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-6 border-t border-slate-800/60">
-              <div className="text-sm text-slate-500">
-                Showing {((page - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(page * ITEMS_PER_PAGE, total)} of {total} events
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  className="px-2 py-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  First
-                </button>
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 text-sm bg-slate-800/60 border border-slate-700/40 rounded-lg text-slate-300 hover:bg-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <div className="flex items-center gap-1 px-2">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    let pageNum: number;
-                    if (totalPages <= 5) {
-                      pageNum = i + 1;
-                    } else if (page <= 3) {
-                      pageNum = i + 1;
-                    } else if (page >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i;
-                    } else {
-                      pageNum = page - 2 + i;
-                    }
-                    return (
-                      <button
-                        key={pageNum}
-                        onClick={() => setPage(pageNum)}
-                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
-                          page === pageNum
-                            ? 'bg-blue-600 text-white'
-                            : 'text-slate-400 hover:bg-slate-800/60'
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-3 py-1.5 text-sm bg-slate-800/60 border border-slate-700/40 rounded-lg text-slate-300 hover:bg-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-                <button
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  className="px-2 py-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
-                >
-                  Last
-                </button>
-              </div>
-            </div>
+            <Pagination 
+              page={page} 
+              totalPages={totalPages} 
+              total={total} 
+              itemsPerPage={ITEMS_PER_PAGE}
+              setPage={setPage}
+            />
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// Empty state component
+function EmptyState({ hasFilters }: { hasFilters: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-slate-800/50 flex items-center justify-center mb-4">
+        <SearchIcon className="w-8 h-8 text-slate-600" />
+      </div>
+      <div className="text-lg font-semibold text-slate-300 mb-1">No intel found</div>
+      <div className="text-sm text-slate-500 max-w-sm">
+        {hasFilters 
+          ? "Try adjusting your filters to see more results"
+          : "Intel feed is empty. Run ingestion to populate data."}
+      </div>
+    </div>
+  );
+}
+
+// Pagination component
+function Pagination({ 
+  page, 
+  totalPages, 
+  total, 
+  itemsPerPage,
+  setPage 
+}: { 
+  page: number; 
+  totalPages: number; 
+  total: number; 
+  itemsPerPage: number;
+  setPage: (p: number | ((p: number) => number)) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between pt-6 border-t border-slate-800/60">
+      <div className="text-sm text-slate-500">
+        <span className="text-slate-400 font-medium">{((page - 1) * itemsPerPage) + 1}–{Math.min(page * itemsPerPage, total)}</span>
+        {' '}of{' '}
+        <span className="text-slate-400 font-medium">{total}</span>
+        {' '}events
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setPage(1)}
+          disabled={page === 1}
+          className="btn-ghost text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          First
+        </button>
+        <button
+          onClick={() => setPage(p => Math.max(1, p - 1))}
+          disabled={page === 1}
+          className="btn-secondary text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <div className="flex items-center gap-1 px-2">
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            let pageNum: number;
+            if (totalPages <= 5) {
+              pageNum = i + 1;
+            } else if (page <= 3) {
+              pageNum = i + 1;
+            } else if (page >= totalPages - 2) {
+              pageNum = totalPages - 4 + i;
+            } else {
+              pageNum = page - 2 + i;
+            }
+            return (
+              <button
+                key={pageNum}
+                onClick={() => setPage(pageNum)}
+                className={`w-9 h-9 text-sm rounded-lg font-medium transition-all duration-150 ${
+                  page === pageNum
+                    ? 'bg-amber-500 text-slate-900 shadow-lg shadow-amber-500/20'
+                    : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                }`}
+              >
+                {pageNum}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          disabled={page === totalPages}
+          className="btn-secondary text-sm disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+        <button
+          onClick={() => setPage(totalPages)}
+          disabled={page === totalPages}
+          className="btn-ghost text-xs disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          Last
+        </button>
+      </div>
     </div>
   );
 }

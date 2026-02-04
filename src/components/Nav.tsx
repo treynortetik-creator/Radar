@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { RadarIcon, CommandIcon, AnalyticsIcon, GearIcon } from '@/components/icons';
 
 const links = [
-  { href: '/', label: 'Dashboard', icon: '📡' },
-  { href: '/stats', label: 'Analytics', icon: '📊' },
-  { href: '/admin', label: 'Admin', icon: '⚙️' },
+  { href: '/', label: 'Command', icon: CommandIcon },
+  { href: '/stats', label: 'Analytics', icon: AnalyticsIcon },
+  { href: '/admin', label: 'Control', icon: GearIcon },
 ];
 
 export function Nav() {
@@ -20,56 +21,79 @@ export function Nav() {
   }
 
   return (
-    <nav className="bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/60 sticky top-0 z-50">
+    <nav className="sticky top-0 z-50 border-b border-slate-800/60 bg-[#0b1120]/90 backdrop-blur-xl">
+      {/* Subtle top accent line */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex items-center justify-between h-16">
+          {/* Left: Logo & Nav */}
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-blue-500/20">
-                R
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-3 group">
+              <div className="relative">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 group-hover:shadow-amber-500/30 transition-shadow">
+                  <RadarIcon className="w-5 h-5 text-slate-900" />
+                </div>
+                {/* Subtle glow effect */}
+                <div className="absolute -inset-1 rounded-xl bg-amber-500/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
               </div>
               <div className="flex flex-col">
-                <span className="text-sm font-semibold text-slate-100 leading-tight">Radar</span>
-                <span className="text-[10px] text-slate-500 leading-tight hidden sm:block">Competitive Intel</span>
+                <span className="text-base font-bold text-slate-100 leading-tight tracking-tight">RADAR</span>
+                <span className="text-[10px] text-slate-500 leading-tight hidden sm:block font-medium tracking-wider uppercase">Competitive Intel</span>
               </div>
             </Link>
+
+            {/* Nav Links */}
             <div className="flex gap-1">
               {links.map(link => {
                 const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
+                const Icon = link.icon;
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 ${
-                      isActive
-                        ? 'bg-slate-800 text-white shadow-sm'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                    }`}
+                    className={`nav-link ${isActive ? 'active' : ''}`}
                   >
-                    <span className="mr-1.5 text-xs">{link.icon}</span>
-                    {link.label}
+                    <Icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{link.label}</span>
                   </Link>
                 );
               })}
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live
+
+          {/* Right: Status & User */}
+          <div className="flex items-center gap-4">
+            {/* Live Status Indicator */}
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <span className="status-dot online pulse" />
+              <span className="text-xs font-medium text-emerald-400">LIVE</span>
             </div>
+
             {user && (
-              <>
-                <span className="hidden sm:block text-xs text-slate-500 truncate max-w-[150px]">
-                  {user.email}
-                </span>
+              <div className="flex items-center gap-3">
+                {/* User Email */}
+                <div className="hidden md:flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-400">
+                    {user.email?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <span className="text-xs text-slate-500 truncate max-w-[120px]">
+                    {user.email}
+                  </span>
+                </div>
+                
+                {/* Divider */}
+                <div className="hidden md:block w-px h-6 bg-slate-800" />
+                
+                {/* Sign Out */}
                 <button
                   onClick={signOut}
-                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-md transition-colors"
+                  className="btn-ghost text-xs"
                 >
                   Sign out
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>

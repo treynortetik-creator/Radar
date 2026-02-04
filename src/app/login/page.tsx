@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { RadarSweepIcon, ShieldIcon } from '@/components/icons';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,34 +46,54 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="w-full max-w-md">
-        <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-8">
+    <div className="min-h-[85vh] flex items-center justify-center px-4">
+      {/* Background decorations */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        {/* Radial gradient */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-amber-500/5 blur-3xl" />
+        {/* Grid lines */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(51,65,85,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(51,65,85,0.03)_1px,transparent_1px)] bg-[size:60px_60px]" />
+      </div>
+      
+      <div className="w-full max-w-md relative z-10">
+        {/* Card */}
+        <div className="card-base p-8 backdrop-blur-xl">
+          {/* Top glow accent */}
+          <div className="absolute -top-px left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+          
+          {/* Logo & Title */}
           <div className="text-center mb-8">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xl font-bold text-white shadow-lg shadow-blue-500/20 mx-auto mb-4">
-              R
+            <div className="relative inline-flex items-center justify-center mb-5">
+              {/* Outer glow ring */}
+              <div className="absolute w-20 h-20 rounded-full bg-amber-500/10 animate-pulse" />
+              {/* Logo container */}
+              <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                <RadarSweepIcon className="w-9 h-9 text-slate-900" />
+              </div>
             </div>
-            <h1 className="text-2xl font-bold text-slate-100">Radar</h1>
-            <p className="text-sm text-slate-500 mt-1">Competitive Intelligence</p>
+            
+            <h1 className="text-3xl font-bold text-slate-100 tracking-tight">RADAR</h1>
+            <p className="text-sm text-slate-500 mt-2 font-medium">Competitive Intelligence Platform</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">
-                Email
+              <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
+                Email Address
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-slate-900/60 border border-slate-700/40 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500/30 transition-all"
-                placeholder="you@company.com"
+                className="input-base"
+                placeholder="operator@company.com"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">
+              <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wider">
                 Password
               </label>
               <input
@@ -81,40 +102,67 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full bg-slate-900/60 border border-slate-700/40 rounded-lg px-4 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-slate-500 focus:ring-1 focus:ring-slate-500/30 transition-all"
+                className="input-base"
                 placeholder="••••••••"
               />
             </div>
 
+            {/* Error/Success message */}
             {error && (
-              <div className={`p-3 rounded-lg text-sm ${
-                error.includes('Check your email')
+              <div className={`
+                flex items-center gap-2 p-3 rounded-lg text-sm
+                ${error.includes('Check your email')
                   ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
                   : 'bg-red-500/10 border border-red-500/20 text-red-400'
-              }`}>
-                {error}
+                }
+              `}>
+                <ShieldIcon 
+                  variant={error.includes('Check your email') ? 'secure' : 'alert'} 
+                  className="w-4 h-4 shrink-0" 
+                />
+                <span>{error}</span>
               </div>
             )}
 
+            {/* Submit button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-colors"
+              className="btn-primary w-full flex items-center justify-center gap-2"
             >
-              {loading ? 'Loading...' : mode === 'login' ? 'Sign In' : 'Sign Up'}
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                  <span>Authenticating...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldIcon variant="secure" className="w-4 h-4" />
+                  <span>{mode === 'login' ? 'Access Command Center' : 'Create Account'}</span>
+                </>
+              )}
             </button>
           </form>
 
+          {/* Mode toggle */}
           <div className="mt-6 text-center">
             <button
               onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-              className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+              className="text-sm text-slate-500 hover:text-amber-400 transition-colors"
             >
               {mode === 'login'
-                ? "Don't have an account? Sign up"
-                : 'Already have an account? Sign in'}
+                ? "Don't have access? Request credentials"
+                : 'Already have access? Sign in'}
             </button>
           </div>
+        </div>
+
+        {/* Security notice */}
+        <div className="mt-6 text-center">
+          <p className="text-xs text-slate-600 flex items-center justify-center gap-1.5">
+            <ShieldIcon variant="default" className="w-3.5 h-3.5" />
+            Secure connection • Data encrypted in transit
+          </p>
         </div>
       </div>
     </div>
