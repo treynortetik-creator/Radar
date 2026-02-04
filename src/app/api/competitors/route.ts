@@ -35,9 +35,11 @@ export async function GET() {
   }> = {};
 
   for (const event of events || []) {
-    const competitors = event.competitors as { id: number; name: string } | null;
-    const name = competitors?.name || 'Unknown';
-    const competitorId = competitors?.id || event.competitor_id || 0;
+    // Supabase returns joined data as object or array depending on relationship
+    const comp = event.competitors as { id: number; name: string } | { id: number; name: string }[] | null;
+    const competitor = Array.isArray(comp) ? comp[0] : comp;
+    const name = competitor?.name || 'Unknown';
+    const competitorId = competitor?.id || event.competitor_id || 0;
 
     if (!competitorStats[name]) {
       competitorStats[name] = {

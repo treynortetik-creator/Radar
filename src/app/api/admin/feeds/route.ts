@@ -18,15 +18,20 @@ export async function GET() {
 
     if (error) throw error;
 
-    const feeds = (data || []).map(f => ({
-      id: f.id,
-      name: f.name,
-      url: f.url,
-      is_job_board: f.is_job_board,
-      competitor_id: f.competitor_id,
-      competitor_name: (f.competitors as { name: string } | null)?.name || 'Unknown',
-      last_fetched_at: f.last_fetched_at,
-    }));
+    const feeds = (data || []).map(f => {
+      // Supabase returns joined data as object or array depending on relationship
+      const comp = f.competitors as { name: string } | { name: string }[] | null;
+      const competitorName = Array.isArray(comp) ? comp[0]?.name : comp?.name;
+      return {
+        id: f.id,
+        name: f.name,
+        url: f.url,
+        is_job_board: f.is_job_board,
+        competitor_id: f.competitor_id,
+        competitor_name: competitorName || 'Unknown',
+        last_fetched_at: f.last_fetched_at,
+      };
+    });
 
     return NextResponse.json({ feeds });
   } catch (error) {

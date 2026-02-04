@@ -51,11 +51,13 @@ export async function GET(request: NextRequest) {
 
   // Transform to flatten competitor name
   const events = (data || []).map((event: Record<string, unknown>) => {
-    const competitors = event.competitors as { name: string; slug: string } | null;
+    // Supabase returns joined data as object or array depending on relationship
+    const comp = event.competitors as { name: string; slug: string } | { name: string; slug: string }[] | null;
+    const competitor = Array.isArray(comp) ? comp[0] : comp;
     return {
       ...event,
-      competitor: competitors?.name || 'Unknown',
-      competitor_slug: competitors?.slug || '',
+      competitor: competitor?.name || 'Unknown',
+      competitor_slug: competitor?.slug || '',
       competitors: undefined, // Remove nested object
     };
   });

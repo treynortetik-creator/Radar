@@ -255,7 +255,8 @@ export async function POST() {
 
     for (const feed of feedsData) {
       const feedItems = await fetchFeed(feed.url);
-      const competitorName = (feed.competitors as { name: string } | null)?.name || 'Unknown';
+      const comp = feed.competitors as { name: string } | { name: string }[] | null;
+      const competitorName = Array.isArray(comp) ? comp[0]?.name : comp?.name || 'Unknown';
 
       for (const item of feedItems) {
         if (!item.link) continue;

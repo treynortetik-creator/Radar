@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+// Helper to extract competitor name from Supabase join (handles array or object)
+function getCompetitorName(comp: unknown): string {
+  if (Array.isArray(comp)) return (comp[0] as { name?: string })?.name || 'Unknown';
+  return (comp as { name?: string })?.name || 'Unknown';
+}
+
 export async function GET() {
   // Fetch all events with competitor info for aggregation
   const { data: events, error } = await supabase
@@ -46,8 +52,7 @@ export async function GET() {
   // Competitor activity
   const competitorCounts: Record<string, number> = {};
   for (const e of allEvents) {
-    const competitors = e.competitors as { name: string } | null;
-    const name = competitors?.name || 'Unknown';
+    const name = getCompetitorName(e.competitors);
     competitorCounts[name] = (competitorCounts[name] || 0) + 1;
   }
   const competitorActivity = Object.entries(competitorCounts)
@@ -59,8 +64,7 @@ export async function GET() {
   for (const e of allEvents) {
     if (!e.published_at) continue;
     const date = e.published_at.split('T')[0]; // Extract date part
-    const competitors = e.competitors as { name: string } | null;
-    const name = competitors?.name || 'Unknown';
+    const name = getCompetitorName(e.competitors);
 
     if (!timelineMap[date]) timelineMap[date] = {};
     timelineMap[date][name] = (timelineMap[date][name] || 0) + 1;
