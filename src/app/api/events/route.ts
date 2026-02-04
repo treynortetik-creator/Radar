@@ -53,24 +53,24 @@ export async function GET(request: NextRequest) {
   const events = (data || []).map((event: Record<string, unknown>) => {
     // Supabase returns joined data as object or array depending on relationship
     const comp = event.competitors as { name: string; slug: string } | { name: string; slug: string }[] | null;
-    const competitor = Array.isArray(comp) ? comp[0] : comp;
+    const competitorData = Array.isArray(comp) ? comp[0] : comp;
     return {
       ...event,
-      competitor: competitor?.name || 'Unknown',
-      competitor_slug: competitor?.slug || '',
+      competitor: competitorData?.name || 'Unknown',
+      competitor_slug: competitorData?.slug || '',
       competitors: undefined, // Remove nested object
-    };
+    } as Record<string, unknown>;
   });
 
   // Custom sort for priority_tier since Supabase doesn't support CASE ordering
   const tierOrder: Record<string, number> = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
   events.sort((a, b) => {
-    const tierA = tierOrder[a.priority_tier as string] ?? 4;
-    const tierB = tierOrder[b.priority_tier as string] ?? 4;
+    const tierA = tierOrder[String(a.priority_tier || '')] ?? 4;
+    const tierB = tierOrder[String(b.priority_tier || '')] ?? 4;
     if (tierA !== tierB) return tierA - tierB;
     // Secondary sort by published_at descending
-    const dateA = a.published_at ? new Date(a.published_at as string).getTime() : 0;
-    const dateB = b.published_at ? new Date(b.published_at as string).getTime() : 0;
+    const dateA = a.published_at ? new Date(String(a.published_at)).getTime() : 0;
+    const dateB = b.published_at ? new Date(String(b.published_at)).getTime() : 0;
     return dateB - dateA;
   });
 
