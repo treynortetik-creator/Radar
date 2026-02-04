@@ -26,6 +26,8 @@ interface CompetitorSummary {
   total_events: number;
   critical_count: number;
   high_count: number;
+  medium_count: number;
+  low_count: number;
 }
 
 const TIERS = ['Critical', 'High', 'Medium', 'Low'];
@@ -106,24 +108,31 @@ function SectionHeader({
   );
 }
 
+const ITEMS_PER_PAGE = 25;
+
 export default function Dashboard() {
   const [events, setEvents] = useState<Event[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [competitors, setCompetitors] = useState<CompetitorSummary[]>([]);
-  
+
   // Filters
   const [search, setSearch] = useState('');
   const [competitor, setCompetitor] = useState('');
   const [tier, setTier] = useState('');
   const [theme, setTheme] = useState('');
-  
+
+  // Pagination
+  const [page, setPage] = useState(1);
+
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   const toggleSection = (section: string) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
+
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
@@ -132,18 +141,24 @@ export default function Dashboard() {
     if (competitor) params.set('competitor', competitor);
     if (tier) params.set('tier', tier);
     if (theme) params.set('theme', theme);
-    params.set('limit', '200');
-    
+    params.set('limit', String(ITEMS_PER_PAGE));
+    params.set('offset', String((page - 1) * ITEMS_PER_PAGE));
+
     const res = await fetch(`/api/events?${params}`);
     const data = await res.json();
-    setEvents(data.events);
-    setTotal(data.total);
+    setEvents(data.events || []);
+    setTotal(data.total || 0);
     setLoading(false);
-  }, [search, competitor, tier, theme]);
+  }, [search, competitor, tier, theme, page]);
 
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, competitor, tier, theme]);
 
   useEffect(() => {
     fetch('/api/competitors')
@@ -151,13 +166,22 @@ export default function Dashboard() {
       .then(setCompetitors);
   }, []);
 
+  // Events on current page grouped by tier
   const critical = events.filter(e => e.priority_tier === 'Critical');
   const high = events.filter(e => e.priority_tier === 'High');
   const medium = events.filter(e => e.priority_tier === 'Medium');
   const low = events.filter(e => e.priority_tier === 'Low');
 
+  // Calculate total counts from competitors data (for stats cards)
+  const totalCritical = competitors.reduce((sum, c) => sum + (c.critical_count || 0), 0);
+  const totalHigh = competitors.reduce((sum, c) => sum + (c.high_count || 0), 0);
+  const totalMedium = competitors.reduce((sum, c) => sum + (c.medium_count || 0), 0);
+  const totalLow = competitors.reduce((sum, c) => sum + (c.low_count || 0), 0);
+  const totalAll = competitors.reduce((sum, c) => sum + (c.total_events || 0), 0);
+
   const handleCompetitorClick = (name: string) => {
     setCompetitor(prev => prev === name ? '' : name);
+    setPage(1);
   };
 
   const hasActiveFilters = search || competitor || tier || theme;
@@ -166,11 +190,11 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        <StatCard label="Total Events" value={total} icon="📡" />
-        <StatCard label="Critical" value={critical.length} color="red" icon="🔴" />
-        <StatCard label="High" value={high.length} color="orange" icon="🟠" />
-        <StatCard label="Medium" value={medium.length} color="yellow" icon="🟡" />
-        <StatCard label="Low" value={low.length} color="green" icon="🟢" />
+        <StatCard label="Total Events" value={totalAll || total} icon="📡" subtext={hasActiveFilters ? `${total} filtered` : undefined} />
+        <StatCard label="Critical" value={totalCritical} color="red" icon="🔴" />
+        <StatCard label="High" value={totalHigh} color="orange" icon="🟠" />
+        <StatCard label="Medium" value={totalMedium} color="yellow" icon="🟡" />
+        <StatCard label="Low" value={totalLow} color="green" icon="🟢" />
       </div>
 
       {/* Competitor Pills */}
@@ -298,10 +322,10 @@ export default function Dashboard() {
           {/* Low */}
           {low.length > 0 && (
             <section>
-              <SectionHeader 
-                label="Low Priority" 
-                count={low.length} 
-                color="green" 
+              <SectionHeader
+                label="Low Priority"
+                count={low.length}
+                color="green"
                 collapsed={!!collapsedSections.low}
                 onToggle={() => toggleSection('low')}
               />
@@ -311,6 +335,72 @@ export default function Dashboard() {
                 </div>
               )}
             </section>
+          )}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-6 border-t border-slate-800/60">
+              <div className="text-sm text-slate-500">
+                Showing {((page - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(page * ITEMS_PER_PAGE, total)} of {total} events
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(1)}
+                  disabled={page === 1}
+                  className="px-2 py-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  First
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1.5 text-sm bg-slate-800/60 border border-slate-700/40 rounded-lg text-slate-300 hover:bg-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Previous
+                </button>
+                <div className="flex items-center gap-1 px-2">
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-8 h-8 text-sm rounded-lg transition-colors ${
+                          page === pageNum
+                            ? 'bg-blue-600 text-white'
+                            : 'text-slate-400 hover:bg-slate-800/60'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="px-3 py-1.5 text-sm bg-slate-800/60 border border-slate-700/40 rounded-lg text-slate-300 hover:bg-slate-700/60 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setPage(totalPages)}
+                  disabled={page === totalPages}
+                  className="px-2 py-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Last
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
