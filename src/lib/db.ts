@@ -1,38 +1,60 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const DB_PATH = path.resolve(process.cwd(), '..', 'competitor_radar.db');
-
-let db: Database.Database | null = null;
-
-export function getDb(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH, { readonly: true });
-  }
-  return db;
-}
+// Radar database types and constants
+// Data access via Supabase - see src/lib/supabase.ts
 
 export interface CompetitorEvent {
   id: number;
+  competitor_id: number;
+  feed_id: number | null;
   url_hash: string;
   title: string;
   url: string;
-  summary: string;
-  published_at: string;
-  competitor: string;
-  feed_name: string;
-  is_job_board: number;
-  theme: string;
-  threat_level: number;
-  strategic_relevance: number;
-  content_type_weight: number;
-  priority_score: number;
-  priority_tier: 'Low' | 'Medium' | 'High' | 'Critical';
-  route_to: string;
-  key_takeaway: string;
-  auto_flag_triggers: string;
+  summary: string | null;
+  published_at: string | null;
+  feed_name: string | null;
+  is_job_board: boolean;
+  theme: string | null;
+  category: string | null;
+  threat_level: number | null;
+  threat_reasons: string[] | null;
+  strategic_relevance: number | null;
+  content_type_weight: number | null;
+  priority_score: number | null;
+  priority_tier: 'Low' | 'Medium' | 'High' | 'Critical' | null;
+  route_to: string | null;
+  key_takeaway: string | null;
+  auto_flag_triggers: string | null;
+  is_read: boolean;
+  is_actioned: boolean;
+  notes: string | null;
+  synced_to_sheet: boolean;
   created_at: string;
-  synced_to_sheet: number;
+  // Joined from competitors table
+  competitor?: string;
+  competitor_slug?: string;
+}
+
+export interface Competitor {
+  id: number;
+  name: string;
+  slug: string;
+  website: string | null;
+  headquarters: string | null;
+  founded: string | null;
+  employees: string | null;
+  description: string | null;
+  weaknesses: string[] | null;
+  products: string[] | null;
+  created_at: string;
+}
+
+export interface Feed {
+  id: number;
+  competitor_id: number;
+  url: string;
+  name: string | null;
+  is_job_board: boolean;
+  last_fetched_at: string | null;
+  created_at: string;
 }
 
 export const COMPETITOR_COLORS: Record<string, string> = {

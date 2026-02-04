@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 const links = [
   { href: '/', label: 'Dashboard', icon: '📡' },
   { href: '/stats', label: 'Analytics', icon: '📊' },
+  { href: '/admin', label: 'Admin', icon: '⚙️' },
 ];
 
 export function Nav() {

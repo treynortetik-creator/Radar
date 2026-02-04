@@ -1,48 +1,89 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
-  const db = getDb();
-  
-  const tierDistribution = db.prepare(`
-    SELECT priority_tier, COUNT(*) as count 
-    FROM competitor_events 
-    GROUP BY priority_tier
-  `).all();
+  // Fetch all events with competitor info for aggregation
+  const { data: events, error } = await supabase
+    .from('competitor_events')
+    .select(`
+      priority_tier,
+      theme,
+      route_to,
+      published_at,
+      competitors!competitor_events_competitor_id_fkey (
+        name
+      )
+    `);
 
-  const themeDistribution = db.prepare(`
-    SELECT theme, COUNT(*) as count 
-    FROM competitor_events 
-    GROUP BY theme 
-    ORDER BY count DESC
-  `).all();
+  if (error) {
+    console.error('Supabase error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  const competitorActivity = db.prepare(`
-    SELECT competitor, COUNT(*) as count 
-    FROM competitor_events 
-    GROUP BY competitor 
-    ORDER BY count DESC
-  `).all();
+  const allEvents = events || [];
 
-  const timeline = db.prepare(`
-    SELECT 
-      published_at as date,
-      competitor,
-      COUNT(*) as count
-    FROM competitor_events
-    WHERE published_at IS NOT NULL
-    GROUP BY published_at, competitor
-    ORDER BY published_at
-  `).all();
+  // Tier distribution
+  const tierCounts: Record<string, number> = {};
+  for (const e of allEvents) {
+    const tier = e.priority_tier || 'Unknown';
+    tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+  }
+  const tierDistribution = Object.entries(tierCounts).map(([priority_tier, count]) => ({
+    priority_tier,
+    count,
+  }));
 
-  const routeDistribution = db.prepare(`
-    SELECT route_to, COUNT(*) as count 
-    FROM competitor_events 
-    GROUP BY route_to 
-    ORDER BY count DESC
-  `).all();
+  // Theme distribution
+  const themeCounts: Record<string, number> = {};
+  for (const e of allEvents) {
+    const theme = e.theme || 'Unknown';
+    themeCounts[theme] = (themeCounts[theme] || 0) + 1;
+  }
+  const themeDistribution = Object.entries(themeCounts)
+    .map(([theme, count]) => ({ theme, count }))
+    .sort((a, b) => b.count - a.count);
 
-  const totalEvents = db.prepare('SELECT COUNT(*) as count FROM competitor_events').get() as { count: number };
+  // Competitor activity
+  const competitorCounts: Record<string, number> = {};
+  for (const e of allEvents) {
+    const competitors = e.competitors as { name: string } | null;
+    const name = competitors?.name || 'Unknown';
+    competitorCounts[name] = (competitorCounts[name] || 0) + 1;
+  }
+  const competitorActivity = Object.entries(competitorCounts)
+    .map(([competitor, count]) => ({ competitor, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Timeline (events by date and competitor)
+  const timelineMap: Record<string, Record<string, number>> = {};
+  for (const e of allEvents) {
+    if (!e.published_at) continue;
+    const date = e.published_at.split('T')[0]; // Extract date part
+    const competitors = e.competitors as { name: string } | null;
+    const name = competitors?.name || 'Unknown';
+
+    if (!timelineMap[date]) timelineMap[date] = {};
+    timelineMap[date][name] = (timelineMap[date][name] || 0) + 1;
+  }
+  const timeline = Object.entries(timelineMap)
+    .flatMap(([date, competitors]) =>
+      Object.entries(competitors).map(([competitor, count]) => ({
+        date,
+        competitor,
+        count,
+      }))
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Route distribution
+  const routeCounts: Record<string, number> = {};
+  for (const e of allEvents) {
+    const route = e.route_to || 'Unknown';
+    routeCounts[route] = (routeCounts[route] || 0) + 1;
+  }
+  const routeDistribution = Object.entries(routeCounts)
+    .map(([route_to, count]) => ({ route_to, count }))
+    .sort((a, b) => b.count - a.count);
 
   return NextResponse.json({
     tierDistribution,
@@ -50,6 +91,6 @@ export async function GET() {
     competitorActivity,
     timeline,
     routeDistribution,
-    totalEvents: totalEvents.count,
+    totalEvents: allEvents.length,
   });
 }

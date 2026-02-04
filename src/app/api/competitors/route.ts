@@ -1,23 +1,95 @@
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
-  const db = getDb();
-  
-  const competitors = db.prepare(`
-    SELECT 
-      competitor,
-      COUNT(*) as total_events,
-      SUM(CASE WHEN priority_tier = 'Critical' THEN 1 ELSE 0 END) as critical_count,
-      SUM(CASE WHEN priority_tier = 'High' THEN 1 ELSE 0 END) as high_count,
-      SUM(CASE WHEN priority_tier = 'Medium' THEN 1 ELSE 0 END) as medium_count,
-      SUM(CASE WHEN priority_tier = 'Low' THEN 1 ELSE 0 END) as low_count,
-      MAX(published_at) as latest_event,
-      AVG(priority_score) as avg_priority
-    FROM competitor_events
-    GROUP BY competitor
-    ORDER BY SUM(CASE WHEN priority_tier IN ('Critical','High') THEN 1 ELSE 0 END) DESC
-  `).all();
+  // Get all events with competitor info
+  const { data: events, error } = await supabase
+    .from('competitor_events')
+    .select(`
+      priority_tier,
+      priority_score,
+      published_at,
+      competitor_id,
+      competitors!competitor_events_competitor_id_fkey (
+        id,
+        name
+      )
+    `);
+
+  if (error) {
+    console.error('Supabase error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Aggregate by competitor
+  const competitorStats: Record<string, {
+    competitor: string;
+    competitor_id: number;
+    total_events: number;
+    critical_count: number;
+    high_count: number;
+    medium_count: number;
+    low_count: number;
+    latest_event: string | null;
+    priority_scores: number[];
+  }> = {};
+
+  for (const event of events || []) {
+    const competitors = event.competitors as { id: number; name: string } | null;
+    const name = competitors?.name || 'Unknown';
+    const competitorId = competitors?.id || event.competitor_id || 0;
+
+    if (!competitorStats[name]) {
+      competitorStats[name] = {
+        competitor: name,
+        competitor_id: competitorId,
+        total_events: 0,
+        critical_count: 0,
+        high_count: 0,
+        medium_count: 0,
+        low_count: 0,
+        latest_event: null,
+        priority_scores: [],
+      };
+    }
+
+    const stats = competitorStats[name];
+    stats.total_events++;
+
+    switch (event.priority_tier) {
+      case 'Critical': stats.critical_count++; break;
+      case 'High': stats.high_count++; break;
+      case 'Medium': stats.medium_count++; break;
+      case 'Low': stats.low_count++; break;
+    }
+
+    if (event.published_at) {
+      if (!stats.latest_event || event.published_at > stats.latest_event) {
+        stats.latest_event = event.published_at;
+      }
+    }
+
+    if (event.priority_score != null) {
+      stats.priority_scores.push(event.priority_score);
+    }
+  }
+
+  // Convert to array and calculate averages
+  const competitors = Object.values(competitorStats)
+    .map(stats => ({
+      competitor: stats.competitor,
+      competitor_id: stats.competitor_id,
+      total_events: stats.total_events,
+      critical_count: stats.critical_count,
+      high_count: stats.high_count,
+      medium_count: stats.medium_count,
+      low_count: stats.low_count,
+      latest_event: stats.latest_event,
+      avg_priority: stats.priority_scores.length > 0
+        ? stats.priority_scores.reduce((a, b) => a + b, 0) / stats.priority_scores.length
+        : null,
+    }))
+    .sort((a, b) => (b.critical_count + b.high_count) - (a.critical_count + a.high_count));
 
   return NextResponse.json(competitors);
 }

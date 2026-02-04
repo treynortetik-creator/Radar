@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb, CompetitorEvent } from '@/lib/db';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -10,43 +10,67 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '100');
   const offset = parseInt(searchParams.get('offset') || '0');
 
-  const db = getDb();
-  const conditions: string[] = [];
-  const params: Record<string, string | number> = {};
+  // Build query with join to get competitor name
+  let query = supabase
+    .from('competitor_events')
+    .select(`
+      *,
+      competitors!competitor_events_competitor_id_fkey (
+        name,
+        slug
+      )
+    `, { count: 'exact' });
 
+  // Apply filters
   if (competitor) {
-    conditions.push('competitor = @competitor');
-    params.competitor = competitor;
+    // Filter by competitor name via the joined table
+    query = query.eq('competitors.name', competitor);
   }
   if (tier) {
-    conditions.push('priority_tier = @tier');
-    params.tier = tier;
+    query = query.eq('priority_tier', tier);
   }
   if (theme) {
-    conditions.push('theme = @theme');
-    params.theme = theme;
+    query = query.eq('theme', theme);
   }
   if (search) {
-    conditions.push('(title LIKE @search OR summary LIKE @search OR key_takeaway LIKE @search)');
-    params.search = `%${search}%`;
+    query = query.or(`title.ilike.%${search}%,summary.ilike.%${search}%,key_takeaway.ilike.%${search}%`);
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-  
-  const events = db.prepare(`
-    SELECT * FROM competitor_events ${where}
-    ORDER BY 
-      CASE priority_tier 
-        WHEN 'Critical' THEN 0 
-        WHEN 'High' THEN 1 
-        WHEN 'Medium' THEN 2 
-        WHEN 'Low' THEN 3 
-      END,
-      published_at DESC
-    LIMIT @limit OFFSET @offset
-  `).all({ ...params, limit, offset }) as CompetitorEvent[];
+  // Order by priority tier then published date
+  query = query
+    .order('priority_tier', { ascending: true, nullsFirst: false })
+    .order('published_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
-  const total = db.prepare(`SELECT COUNT(*) as count FROM competitor_events ${where}`).get(params) as { count: number };
+  const { data, error, count } = await query;
 
-  return NextResponse.json({ events, total: total.count });
+  if (error) {
+    console.error('Supabase error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Transform to flatten competitor name
+  const events = (data || []).map((event: Record<string, unknown>) => {
+    const competitors = event.competitors as { name: string; slug: string } | null;
+    return {
+      ...event,
+      competitor: competitors?.name || 'Unknown',
+      competitor_slug: competitors?.slug || '',
+      competitors: undefined, // Remove nested object
+    };
+  });
+
+  // Custom sort for priority_tier since Supabase doesn't support CASE ordering
+  const tierOrder: Record<string, number> = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
+  events.sort((a, b) => {
+    const tierA = tierOrder[a.priority_tier as string] ?? 4;
+    const tierB = tierOrder[b.priority_tier as string] ?? 4;
+    if (tierA !== tierB) return tierA - tierB;
+    // Secondary sort by published_at descending
+    const dateA = a.published_at ? new Date(a.published_at as string).getTime() : 0;
+    const dateB = b.published_at ? new Date(b.published_at as string).getTime() : 0;
+    return dateB - dateA;
+  });
+
+  return NextResponse.json({ events, total: count || 0 });
 }
