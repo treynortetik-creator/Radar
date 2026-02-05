@@ -36,9 +36,8 @@ export async function GET(request: NextRequest) {
     query = query.or(`title.ilike.%${search}%,summary.ilike.%${search}%,key_takeaway.ilike.%${search}%`);
   }
 
-  // Order by priority tier then published date
+  // Order by published date (newest first) as default
   query = query
-    .order('priority_tier', { ascending: true, nullsFirst: false })
     .order('published_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -60,18 +59,6 @@ export async function GET(request: NextRequest) {
       competitor_slug: competitorData?.slug || '',
       competitors: undefined, // Remove nested object
     } as Record<string, unknown>;
-  });
-
-  // Custom sort for priority_tier since Supabase doesn't support CASE ordering
-  const tierOrder: Record<string, number> = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
-  events.sort((a, b) => {
-    const tierA = tierOrder[String(a.priority_tier || '')] ?? 4;
-    const tierB = tierOrder[String(b.priority_tier || '')] ?? 4;
-    if (tierA !== tierB) return tierA - tierB;
-    // Secondary sort by published_at descending
-    const dateA = a.published_at ? new Date(String(a.published_at)).getTime() : 0;
-    const dateB = b.published_at ? new Date(String(b.published_at)).getTime() : 0;
-    return dateB - dateA;
   });
 
   return NextResponse.json({ events, total: count || 0 });
