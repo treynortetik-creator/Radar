@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
 
 interface FeedItem {
@@ -215,7 +215,7 @@ export async function POST() {
 
   try {
     // Get config
-    const { data: configData } = await supabase
+    const { data: configData } = await supabaseAdmin
       .from('admin_config')
       .select('key, value');
 
@@ -233,7 +233,7 @@ export async function POST() {
     }
 
     // Get feeds
-    const { data: feedsData, error: feedsError } = await supabase
+    const { data: feedsData, error: feedsError } = await supabaseAdmin
       .from('feeds')
       .select(`
         id,
@@ -275,7 +275,7 @@ export async function POST() {
       }
 
       // Update last_fetched_at
-      await supabase
+      await supabaseAdmin
         .from('feeds')
         .update({ last_fetched_at: new Date().toISOString() })
         .eq('id', feed.id);
@@ -290,7 +290,7 @@ export async function POST() {
 
     for (let i = 0; i < hashes.length; i += BATCH_SIZE) {
       const batchHashes = hashes.slice(i, i + BATCH_SIZE);
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseAdmin
         .from('competitor_events')
         .select('url_hash')
         .in('url_hash', batchHashes);
@@ -308,7 +308,7 @@ export async function POST() {
 
     if (newItems.length === 0) {
       // Update last_ingest time
-      await supabase
+      await supabaseAdmin
         .from('admin_config')
         .upsert({ key: 'last_ingest', value: new Date().toISOString() }, { onConflict: 'key' });
 
@@ -332,7 +332,7 @@ export async function POST() {
       const scores = await scoreItem(item, systemPrompt, model, apiKey);
 
       // Insert into database
-      const { error: insertError } = await supabase
+      const { error: insertError } = await supabaseAdmin
         .from('competitor_events')
         .insert({
           url_hash: item.url_hash,
@@ -367,7 +367,7 @@ export async function POST() {
     }
 
     // Update last_ingest time
-    await supabase
+    await supabaseAdmin
       .from('admin_config')
       .upsert({ key: 'last_ingest', value: new Date().toISOString() }, { onConflict: 'key' });
 
