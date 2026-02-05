@@ -23,8 +23,19 @@ export async function GET(request: NextRequest) {
 
   // Apply filters
   if (competitor) {
-    // Filter by competitor name via the joined table
-    query = query.eq('competitors.name', competitor);
+    // Get competitor ID first for reliable filtering
+    const { data: compData } = await supabase
+      .from('competitors')
+      .select('id')
+      .eq('name', competitor)
+      .single();
+    
+    if (compData) {
+      query = query.eq('competitor_id', compData.id);
+    } else {
+      // Competitor not found - return empty result
+      return NextResponse.json({ events: [], total: 0 });
+    }
   }
   if (tier) {
     query = query.eq('priority_tier', tier);

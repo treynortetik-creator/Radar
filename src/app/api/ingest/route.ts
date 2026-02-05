@@ -172,7 +172,7 @@ async function scoreItem(
     const priorityScore = Math.round(((threat + relevance + weight) / 3) * 10) / 10;
     let priorityTier = 'Low';
     if (priorityScore > 2.6) priorityTier = 'Critical';
-    else if (priorityScore > 2.3) priorityTier = 'High';
+    else if (priorityScore >= 2.3) priorityTier = 'High';  // >= to make High achievable (2.33 rounds to 2.3)
     else if (priorityScore > 1.6) priorityTier = 'Medium';
 
     // Check auto-flag triggers override

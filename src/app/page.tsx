@@ -3,15 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { EventCard } from '@/components/EventCard';
 import { CompetitorPill } from '@/components/CompetitorBadge';
-import { TierDot } from '@/components/TierBadge';
 import { 
   LoadingRadar, 
   SearchIcon, 
   FilterIcon, 
-  ChevronIcon,
   TargetIcon,
   ShieldIcon,
-  SignalIcon,
 } from '@/components/icons';
 
 interface Event {
@@ -86,48 +83,6 @@ function StatCard({
   );
 }
 
-// Section header with collapsible state
-function SectionHeader({ 
-  label, 
-  count, 
-  tier, 
-  collapsed, 
-  onToggle 
-}: { 
-  label: string; 
-  count: number; 
-  tier: string; 
-  collapsed: boolean; 
-  onToggle: () => void;
-}) {
-  const colors: Record<string, { text: string; border: string; bg: string }> = {
-    Critical: { text: 'text-red-400', border: 'border-red-500/30', bg: 'bg-red-500/10' },
-    High: { text: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-500/10' },
-    Medium: { text: 'text-yellow-400', border: 'border-yellow-500/30', bg: 'bg-yellow-500/10' },
-    Low: { text: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10' },
-  };
-  const c = colors[tier] || { text: 'text-slate-400', border: 'border-slate-600', bg: 'bg-slate-500/10' };
-  
-  return (
-    <button 
-      onClick={onToggle}
-      className={`section-header ${c.border} group w-full`}
-    >
-      <TierDot tier={tier} size="md" />
-      <span className={`text-xs font-bold uppercase tracking-wider ${c.text}`}>
-        {label}
-      </span>
-      <span className={`section-count ${c.text} ${c.bg}`}>
-        {count}
-      </span>
-      <ChevronIcon 
-        direction={collapsed ? 'right' : 'down'}
-        className={`ml-auto w-4 h-4 text-slate-500 group-hover:text-slate-400 transition-transform duration-200`}
-      />
-    </button>
-  );
-}
-
 const ITEMS_PER_PAGE = 25;
 
 export default function Dashboard() {
@@ -144,13 +99,6 @@ export default function Dashboard() {
 
   // Pagination
   const [page, setPage] = useState(1);
-
-  // Section collapse state
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-
-  const toggleSection = (section: string) => {
-    setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
@@ -186,11 +134,6 @@ export default function Dashboard() {
       .then(setCompetitors);
   }, []);
 
-  // Events on current page grouped by tier
-  const critical = events.filter(e => e.priority_tier === 'Critical');
-  const high = events.filter(e => e.priority_tier === 'High');
-  const medium = events.filter(e => e.priority_tier === 'Medium');
-  const low = events.filter(e => e.priority_tier === 'Low');
 
   // Calculate total counts from competitors data (for stats cards)
   const totalCritical = competitors.reduce((sum, c) => sum + (c.critical_count || 0), 0);
@@ -299,101 +242,22 @@ export default function Dashboard() {
       ) : events.length === 0 ? (
         <EmptyState hasFilters={hasActiveFilters} />
       ) : (
-        <div className="space-y-8">
-          {/* Critical */}
-          {critical.length > 0 && (
-            <section className="animate-fade-in">
-              <SectionHeader 
-                label="Critical Priority" 
-                count={critical.length} 
-                tier="Critical" 
-                collapsed={!!collapsedSections.critical}
-                onToggle={() => toggleSection('critical')}
-              />
-              {!collapsedSections.critical && (
-                <div className="space-y-3">
-                  {critical.map((e, i) => (
-                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
-                      <EventCard event={e} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* High */}
-          {high.length > 0 && (
-            <section className="animate-fade-in">
-              <SectionHeader 
-                label="High Priority" 
-                count={high.length} 
-                tier="High" 
-                collapsed={!!collapsedSections.high}
-                onToggle={() => toggleSection('high')}
-              />
-              {!collapsedSections.high && (
-                <div className="space-y-3">
-                  {high.map((e, i) => (
-                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
-                      <EventCard event={e} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Medium */}
-          {medium.length > 0 && (
-            <section className="animate-fade-in">
-              <SectionHeader 
-                label="Medium Priority" 
-                count={medium.length} 
-                tier="Medium" 
-                collapsed={!!collapsedSections.medium}
-                onToggle={() => toggleSection('medium')}
-              />
-              {!collapsedSections.medium && (
-                <div className="space-y-3">
-                  {medium.map((e, i) => (
-                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
-                      <EventCard event={e} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Low */}
-          {low.length > 0 && (
-            <section className="animate-fade-in">
-              <SectionHeader
-                label="Low Priority"
-                count={low.length}
-                tier="Low"
-                collapsed={!!collapsedSections.low}
-                onToggle={() => toggleSection('low')}
-              />
-              {!collapsedSections.low && (
-                <div className="space-y-3">
-                  {low.map((e, i) => (
-                    <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
-                      <EventCard event={e} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          )}
+        <div className="space-y-6">
+          {/* Flat chronological list - events already sorted by published_at DESC from API */}
+          <div className="space-y-3">
+            {events.map((e, i) => (
+              <div key={e.id} className={`animate-fade-in stagger-${Math.min(i + 1, 5)}`}>
+                <EventCard event={e} />
+              </div>
+            ))}
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <Pagination 
-              page={page} 
-              totalPages={totalPages} 
-              total={total} 
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={total}
               itemsPerPage={ITEMS_PER_PAGE}
               setPage={setPage}
             />
