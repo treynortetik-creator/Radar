@@ -283,14 +283,25 @@ export async function POST() {
 
     console.log(`Fetched ${allItems.length} total items`);
 
-    // Check for duplicates
+    // Check for duplicates - batch hash checks to avoid Supabase .in() limits
     const hashes = allItems.map(i => i.url_hash);
-    const { data: existing } = await supabase
-      .from('competitor_events')
-      .select('url_hash')
-      .in('url_hash', hashes);
+    const BATCH_SIZE = 50;
+    const existingHashes = new Set<string>();
 
-    const existingHashes = new Set((existing || []).map(e => e.url_hash));
+    for (let i = 0; i < hashes.length; i += BATCH_SIZE) {
+      const batchHashes = hashes.slice(i, i + BATCH_SIZE);
+      const { data: existing } = await supabase
+        .from('competitor_events')
+        .select('url_hash')
+        .in('url_hash', batchHashes);
+
+      if (existing) {
+        for (const e of existing) {
+          existingHashes.add(e.url_hash);
+        }
+      }
+    }
+
     const newItems = allItems.filter(i => !existingHashes.has(i.url_hash));
 
     console.log(`${newItems.length} new items (${allItems.length - newItems.length} duplicates)`);

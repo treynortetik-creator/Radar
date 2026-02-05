@@ -11,7 +11,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,22 +18,11 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        setError('Check your email for a confirmation link!');
-        setLoading(false);
-        return;
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
 
       router.push('/');
       router.refresh();
@@ -107,19 +95,10 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Error/Success message */}
+            {/* Error message */}
             {error && (
-              <div className={`
-                flex items-center gap-2 p-3 rounded-lg text-sm
-                ${error.includes('Check your email')
-                  ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
-                  : 'bg-red-500/10 border border-red-500/20 text-red-400'
-                }
-              `}>
-                <ShieldIcon 
-                  variant={error.includes('Check your email') ? 'secure' : 'alert'} 
-                  className="w-4 h-4 shrink-0" 
-                />
+              <div className="flex items-center gap-2 p-3 rounded-lg text-sm bg-red-500/10 border border-red-500/20 text-red-400">
+                <ShieldIcon variant="alert" className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
@@ -138,22 +117,17 @@ export default function LoginPage() {
               ) : (
                 <>
                   <ShieldIcon variant="secure" className="w-4 h-4" />
-                  <span>{mode === 'login' ? 'Access Command Center' : 'Create Account'}</span>
+                  <span>Access Command Center</span>
                 </>
               )}
             </button>
           </form>
 
-          {/* Mode toggle */}
+          {/* Access notice */}
           <div className="mt-6 text-center">
-            <button
-              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-              className="text-sm text-slate-500 hover:text-amber-400 transition-colors"
-            >
-              {mode === 'login'
-                ? "Don't have access? Request credentials"
-                : 'Already have access? Sign in'}
-            </button>
+            <p className="text-sm text-slate-500">
+              Contact your administrator for access credentials
+            </p>
           </div>
         </div>
 
