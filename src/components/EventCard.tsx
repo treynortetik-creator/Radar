@@ -41,7 +41,10 @@ const cardClasses: Record<string, string> = {
 function formatDate(dateStr: string): string {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr + 'T00:00:00');
+    // Handle both ISO timestamps and date-only strings
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
     
@@ -51,17 +54,18 @@ function formatDate(dateStr: string): string {
     
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   } catch {
-    return dateStr;
+    return '';
   }
 }
 
 function formatFullDate(dateStr: string): string {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr + 'T00:00:00');
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
     return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   } catch {
-    return dateStr;
+    return '';
   }
 }
 
