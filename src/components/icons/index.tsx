@@ -287,3 +287,15 @@ export function LoadingRadar({ className = "w-8 h-8" }: { className?: string }) 
     </svg>
   );
 }
+
+export function DocumentIcon({ className = "w-6 h-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 13H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M16 17H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M10 9H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}

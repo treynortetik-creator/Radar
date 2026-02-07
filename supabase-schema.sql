@@ -156,3 +156,47 @@ FROM competitor_events e
 JOIN competitors c ON e.competitor_id = c.id
 WHERE e.is_read = FALSE
 ORDER BY e.priority_tier DESC, e.published_at DESC;
+
+-- ============================================
+-- WEEKLY INTEL DIGEST
+-- ============================================
+
+CREATE TABLE weekly_digests (
+    id SERIAL PRIMARY KEY,
+    week_start DATE NOT NULL,
+    week_end DATE NOT NULL,
+    content TEXT NOT NULL,
+    summary TEXT,
+    event_count INTEGER,
+    competitor_breakdown JSONB,
+    model_used TEXT,
+    prompt_version INTEGER,
+    tokens_used INTEGER,
+    cost_estimate DECIMAL(8,4),
+    status TEXT DEFAULT 'generated',
+    delivered_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE digest_config (
+    id SERIAL PRIMARY KEY,
+    system_prompt TEXT NOT NULL,
+    focus_areas TEXT[],
+    output_format TEXT DEFAULT 'detailed',
+    delivery_day INTEGER DEFAULT 0,
+    delivery_hour INTEGER DEFAULT 18,
+    model TEXT DEFAULT 'google/gemini-2.0-flash-001',
+    is_active BOOLEAN DEFAULT TRUE,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_digests_week ON weekly_digests(week_end DESC);
+CREATE INDEX idx_digests_status ON weekly_digests(status);
+
+ALTER TABLE weekly_digests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE digest_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous read" ON weekly_digests FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous read" ON digest_config FOR SELECT USING (true);
+CREATE POLICY "Allow service write" ON weekly_digests FOR ALL USING (true);
+CREATE POLICY "Allow service write" ON digest_config FOR ALL USING (true);

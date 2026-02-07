@@ -74,3 +74,33 @@ export const TIER_COLORS: Record<string, string> = {
 };
 
 export const TIER_ORDER = ['Critical', 'High', 'Medium', 'Low'];
+
+// Weekly Digest types
+export interface WeeklyDigest {
+  id: number;
+  week_start: string;
+  week_end: string;
+  content: string;
+  summary: string | null;
+  event_count: number | null;
+  competitor_breakdown: Record<string, number> | null;
+  model_used: string | null;
+  prompt_version: number | null;
+  tokens_used: number | null;
+  cost_estimate: number | null;
+  status: string;
+  delivered_at: string | null;
+  created_at: string;
+}
+
+export interface DigestConfig {
+  id: number;
+  system_prompt: string;
+  focus_areas: string[] | null;
+  output_format: string;
+  delivery_day: number;
+  delivery_hour: number;
+  model: string;
+  is_active: boolean;
+  updated_at: string;
+}

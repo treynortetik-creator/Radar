@@ -3,11 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
-import { RadarIcon, CommandIcon, AnalyticsIcon, GearIcon } from '@/components/icons';
+import { RadarIcon, CommandIcon, AnalyticsIcon, DocumentIcon, GearIcon } from '@/components/icons';
 
 const links = [
   { href: '/', label: 'Command', icon: CommandIcon },
   { href: '/stats', label: 'Analytics', icon: AnalyticsIcon },
+  { href: '/digest', label: 'Intel', icon: DocumentIcon },
   { href: '/admin', label: 'Control', icon: GearIcon },
 ];
 
