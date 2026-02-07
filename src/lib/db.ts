@@ -44,7 +44,57 @@ export interface Competitor {
   description: string | null;
   weaknesses: string[] | null;
   products: string[] | null;
+  employee_count: string | null;
+  funding: string | null;
+  market_segments: string[] | null;
+  updated_at: string | null;
   created_at: string;
+}
+
+export interface CompetitorExecutive {
+  id: number;
+  competitor_id: number;
+  name: string;
+  title: string;
+  linkedin_url: string | null;
+  background: string | null;
+  started_role: string | null;
+  is_current: boolean;
+  source: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CompetitorProduct {
+  id: number;
+  competitor_id: number;
+  name: string;
+  description: string | null;
+  features: Record<string, string>[] | null;
+  pricing: string | null;
+  technology: string | null;
+  limitations: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BattleCard {
+  id: number;
+  competitor_id: number;
+  when_they_come_up: string | null;
+  their_pitch: string | null;
+  our_counter: string | null;
+  landmines: string | null;
+  proof_points: string[] | null;
+  objection_handling: { objection: string; response: string }[] | null;
+  last_reviewed_at: string | null;
+  updated_at: string;
+}
+
+export interface CompetitorProfile extends Competitor {
+  executives: CompetitorExecutive[];
+  products_list: CompetitorProduct[];
+  battle_card: BattleCard | null;
 }
 
 export interface Feed {
