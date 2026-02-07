@@ -119,10 +119,8 @@ CREATE POLICY "Allow anonymous read" ON competitor_events FOR SELECT USING (true
 CREATE POLICY "Allow anonymous read" ON competitors FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous read" ON feeds FOR SELECT USING (true);
 
--- Allow authenticated write (for the ingestion pipeline)
-CREATE POLICY "Allow authenticated write" ON competitor_events FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow authenticated write" ON competitors FOR ALL USING (auth.role() = 'authenticated');
-CREATE POLICY "Allow authenticated write" ON feeds FOR ALL USING (auth.role() = 'authenticated');
+-- Write access: service_role key (used by API routes) bypasses RLS.
+-- No explicit write policy needed — only service_role should write.
 
 -- ============================================
 -- USEFUL VIEWS
