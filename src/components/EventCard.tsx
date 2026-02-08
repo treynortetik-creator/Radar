@@ -170,7 +170,7 @@ export function EventCard({ event }: { event: Event }) {
             {event.summary && (
               <div>
                 <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Intel Summary</span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Source Content</span>
                 </div>
                 <p className="text-[13px] text-slate-300 leading-relaxed">{event.summary}</p>
               </div>

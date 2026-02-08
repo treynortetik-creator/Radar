@@ -17,6 +17,7 @@ export async function GET() {
     return NextResponse.json({
       model: config.openrouter_model || 'google/gemini-2.0-flash-001',
       system_prompt: config.system_prompt || '',
+      master_context: config.master_context || '',
       last_ingest: config.last_ingest || null,
     });
   } catch (error) {
@@ -44,6 +45,14 @@ export async function POST(request: Request) {
         .from('admin_config')
         .upsert({ key: 'system_prompt', value: system_prompt, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (promptError) throw promptError;
+    }
+
+    // Update master context
+    if (body.master_context !== undefined) {
+      const { error: contextError } = await supabase
+        .from('admin_config')
+        .upsert({ key: 'master_context', value: body.master_context, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (contextError) throw contextError;
     }
 
     return NextResponse.json({ success: true });

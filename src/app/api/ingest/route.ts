@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
+import * as cheerio from 'cheerio';
 
 interface FeedItem {
   title: string;
@@ -45,6 +46,47 @@ function stripHtml(text: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 2000);
+}
+
+// Fetch full content from a URL (for job board postings)
+async function fetchFullContent(url: string): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Radar/1.0 (competitive intelligence)' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return null;
+
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // Remove noise elements
+    $('script, style, nav, header, footer, .sidebar, .ads, .cookie-banner').remove();
+
+    // Try to find job content in common structures
+    const content =
+      $('article').text() ||
+      $('[class*="job-description"]').text() ||
+      $('[class*="job-detail"]').text() ||
+      $('[class*="posting"]').text() ||
+      $('main').text() ||
+      $('body').text();
+
+    const cleaned = content
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 5000);
+
+    return cleaned.length > 100 ? cleaned : null;
+  } catch (err) {
+    console.warn(`Failed to fetch content from ${url}:`, err);
+    return null;
+  }
 }
 
 // Parse RSS feed
@@ -104,6 +146,7 @@ function parseDate(dateStr?: string): string {
 async function scoreItem(
   item: FeedItem,
   systemPrompt: string,
+  masterContext: string,
   model: string,
   apiKey: string
 ): Promise<AIScores> {
@@ -125,12 +168,18 @@ async function scoreItem(
   }
 
   try {
-    const prompt = systemPrompt
-      .replace('{competitor}', item.competitor_name)
-      .replace('{title}', item.title)
-      .replace('{summary}', item.summary.slice(0, 1500))
-      .replace('{date}', item.date)
-      .replace('{is_job}', item.is_job_board ? 'Yes' : 'No');
+    const contextSection = masterContext
+      ? `\n\n## SAFELYOU COMPANY CONTEXT:\n${masterContext}\n`
+      : '';
+
+    const prompt = `${systemPrompt}${contextSection}
+
+## ITEM TO SCORE:
+Competitor: ${item.competitor_name}
+Title: ${item.title}
+Summary: ${item.summary.slice(0, 1500)}
+Date: ${item.date}
+Is Job Board: ${item.is_job_board ? 'Yes' : 'No'}`;
 
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -226,6 +275,7 @@ export async function POST() {
 
     const model = config.openrouter_model || 'google/gemini-2.0-flash-001';
     const systemPrompt = config.system_prompt || '';
+    const masterContext = config.master_context || '';
     const apiKey = process.env.OPENROUTER_API_KEY || '';
 
     if (!systemPrompt) {
@@ -283,6 +333,19 @@ export async function POST() {
 
     console.log(`Fetched ${allItems.length} total items`);
 
+    // Fetch full content for job board postings
+    console.log('Fetching full content for job board items...');
+    for (const item of allItems) {
+      if (item.is_job_board && item.url) {
+        const fullContent = await fetchFullContent(item.url);
+        if (fullContent) {
+          item.summary = fullContent;
+        }
+        // Rate limit page fetches
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
+
     // Check for duplicates - batch hash checks to avoid Supabase .in() limits
     const hashes = allItems.map(i => i.url_hash);
     const BATCH_SIZE = 50;
@@ -329,7 +392,7 @@ export async function POST() {
     for (const item of newItems) {
       console.log(`Scoring: ${item.title.slice(0, 50)}...`);
 
-      const scores = await scoreItem(item, systemPrompt, model, apiKey);
+      const scores = await scoreItem(item, systemPrompt, masterContext, model, apiKey);
 
       // Insert into database
       const { error: insertError } = await supabaseAdmin

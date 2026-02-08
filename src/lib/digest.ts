@@ -1,5 +1,3 @@
-import fs from 'fs';
-import path from 'path';
 import { supabaseAdmin } from './supabase-admin';
 import type { DigestConfig } from './db';
 
@@ -76,15 +74,24 @@ function formatEventsForPrompt(events: EventRow[]): string {
 }
 
 /**
- * Load the SafelyYou Master Context from the repo root
+ * Load the SafelyYou Master Context from Supabase admin_config
  */
-function loadMasterContext(): string {
+async function loadMasterContext(): Promise<string> {
   try {
-    const filePath = path.join(process.cwd(), 'SafelyYou_Master_Context_v2.md');
-    return fs.readFileSync(filePath, 'utf-8');
+    const { data, error } = await supabaseAdmin
+      .from('admin_config')
+      .select('value')
+      .eq('key', 'master_context')
+      .single();
+
+    if (error || !data?.value) {
+      console.warn('Could not load master context from database:', error?.message);
+      return '';
+    }
+    return data.value;
   } catch (err) {
     console.warn('Could not load SafelyYou Master Context:', err);
-    return '(Master context file not available)';
+    return '';
   }
 }
 
@@ -117,7 +124,7 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
   const typedEvents = (events || []) as unknown as EventRow[];
 
   // 3. Load master context
-  const masterContext = loadMasterContext();
+  const masterContext = await loadMasterContext();
 
   // 4. Load digest config
   const { data: configData, error: configError } = await supabaseAdmin

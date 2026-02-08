@@ -31,22 +31,12 @@ interface Competitor {
   name: string;
 }
 
-const OPENROUTER_MODELS = [
-  { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', cost: '$0.10/M tokens', tier: 'recommended' },
-  { id: 'google/gemini-2.0-flash-thinking-exp-01-21:free', name: 'Gemini 2.0 Flash Thinking', cost: 'Free', tier: 'free' },
-  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', cost: '$3/M in, $15/M out', tier: 'premium' },
-  { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku', cost: '$0.25/M in, $1.25/M out', tier: 'standard' },
-  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', cost: '$0.15/M in, $0.60/M out', tier: 'standard' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o', cost: '$2.50/M in, $10/M out', tier: 'premium' },
-  { id: 'meta-llama/llama-3.1-70b-instruct', name: 'Llama 3.1 70B', cost: '$0.52/M tokens', tier: 'standard' },
-];
-
-const tierColors: Record<string, { bg: string; text: string; border: string }> = {
-  recommended: { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/30' },
-  free: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
-  premium: { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/30' },
-  standard: { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/30' },
-};
+interface OpenRouterModel {
+  id: string;
+  name: string;
+  pricing: { prompt: string; completion: string };
+  context_length: number;
+}
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -60,6 +50,7 @@ export default function AdminPage() {
   // Config state
   const [model, setModel] = useState('google/gemini-2.0-flash-001');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [masterContext, setMasterContext] = useState('');
 
   // Feeds state
   const [feeds, setFeeds] = useState<Feed[]>([]);
@@ -85,12 +76,18 @@ export default function AdminPage() {
   const [previewContent, setPreviewContent] = useState<string | null>(null);
   const [digestHistory, setDigestHistory] = useState<WeeklyDigest[]>([]);
 
+  // Model selection state
+  const [availableModels, setAvailableModels] = useState<OpenRouterModel[]>([]);
+  const [modelSearch, setModelSearch] = useState('');
+  const [digestModelSearch, setDigestModelSearch] = useState('');
+
   useEffect(() => {
     loadConfig();
     loadFeeds();
     loadCompetitors();
     loadDigestConfig();
     loadDigestHistory();
+    loadModels();
   }, []);
 
   // Auto-dismiss messages
@@ -107,6 +104,7 @@ export default function AdminPage() {
       const data = await res.json();
       if (data.model) setModel(data.model);
       if (data.system_prompt) setSystemPrompt(data.system_prompt);
+      if (data.master_context) setMasterContext(data.master_context);
       if (data.last_ingest) setLastIngest(data.last_ingest);
     } catch (err) {
       console.error('Failed to load config:', err);
@@ -165,6 +163,16 @@ export default function AdminPage() {
     }
   };
 
+  const loadModels = async () => {
+    try {
+      const res = await fetch('/api/openrouter/models');
+      const data = await res.json();
+      setAvailableModels(data.models || []);
+    } catch (err) {
+      console.error('Failed to load models:', err);
+    }
+  };
+
   const saveConfig = async () => {
     setSaving(true);
     setMessage(null);
@@ -172,7 +180,7 @@ export default function AdminPage() {
       const res = await fetch('/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, system_prompt: systemPrompt }),
+        body: JSON.stringify({ model, system_prompt: systemPrompt, master_context: masterContext }),
       });
       if (!res.ok) throw new Error('Failed to save');
       setMessage({ type: 'success', text: 'Configuration saved successfully' });
@@ -434,41 +442,43 @@ export default function AdminPage() {
           {/* Model Selection */}
           <section className="card-base p-6">
             <h2 className="text-lg font-semibold text-slate-100 mb-4">AI Model Selection</h2>
-            <div className="grid gap-2">
-              {OPENROUTER_MODELS.map(m => {
-                const tc = tierColors[m.tier];
-                return (
-                  <label
-                    key={m.id}
-                    className={`
-                      flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all duration-150
-                      ${model === m.id
-                        ? 'bg-amber-500/10 border border-amber-500/30 ring-1 ring-amber-500/20'
-                        : 'bg-slate-900/40 border border-slate-700/30 hover:border-slate-600/50'
-                      }
-                    `}
-                  >
-                    <input
-                      type="radio"
-                      name="model"
-                      value={m.id}
-                      checked={model === m.id}
-                      onChange={(e) => setModel(e.target.value)}
-                      className="w-4 h-4 text-amber-500 border-slate-600 focus:ring-amber-500 focus:ring-offset-0 bg-slate-800"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-200">{m.name}</span>
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${tc.bg} ${tc.text} border ${tc.border}`}>
-                          {m.tier}
-                        </span>
-                      </div>
-                      <div className="text-xs text-slate-500 truncate">{m.id}</div>
-                    </div>
-                    <div className="text-xs text-slate-400 font-mono shrink-0">{m.cost}</div>
-                  </label>
-                );
-              })}
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={modelSearch}
+                onChange={(e) => setModelSearch(e.target.value)}
+                placeholder="Search models..."
+                className="input-base"
+              />
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="input-base"
+                size={8}
+              >
+                {availableModels
+                  .filter(m =>
+                    m.name.toLowerCase().includes(modelSearch.toLowerCase()) ||
+                    m.id.toLowerCase().includes(modelSearch.toLowerCase())
+                  )
+                  .map(m => {
+                    const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
+                    const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
+                    const costStr = promptCost === 0 && completionCost === 0
+                      ? 'Free'
+                      : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.name} — {costStr} — {(m.context_length / 1000).toFixed(0)}k ctx
+                      </option>
+                    );
+                  })}
+              </select>
+              {model && (
+                <div className="text-xs text-slate-400">
+                  Selected: <code className="bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{model}</code>
+                </div>
+              )}
             </div>
           </section>
 
@@ -509,6 +519,39 @@ export default function AdminPage() {
                 )}
               </button>
             </div>
+          </section>
+
+          {/* Master Context */}
+          <section className="card-base p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-100">Master Context</h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  SafelyYou company context injected into all AI prompts (ingest + digest)
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 font-mono">{masterContext.length.toLocaleString()} chars</span>
+                {masterContext.length > 0 ? (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Loaded
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-1 rounded-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                    Not Loaded
+                  </span>
+                )}
+              </div>
+            </div>
+            <textarea
+              value={masterContext}
+              onChange={(e) => setMasterContext(e.target.value)}
+              rows={10}
+              className="input-base font-mono text-sm resize-y min-h-[150px]"
+              placeholder="Paste SafelyYou Master Context here..."
+            />
           </section>
 
           {/* Feeds Management */}
@@ -696,6 +739,22 @@ export default function AdminPage() {
       {/* =================== WEEKLY DIGEST TAB =================== */}
       {activeTab === 'digest' && (
         <>
+          {/* Context Status */}
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-700/30">
+            <span className="text-xs text-slate-400">Master Context:</span>
+            {masterContext.length > 0 ? (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Loaded ({(masterContext.length / 1000).toFixed(1)}k chars) — injected into digest prompt
+              </span>
+            ) : (
+              <span className="flex items-center gap-1.5 text-xs font-medium text-red-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                Not loaded — configure in Settings tab
+              </span>
+            )}
+          </div>
+
           {/* Digest Prompt */}
           <section className="card-base p-6">
             <div className="flex items-center justify-between mb-4">
@@ -793,14 +852,36 @@ export default function AdminPage() {
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1.5">AI Model</label>
+                <input
+                  type="text"
+                  value={digestModelSearch}
+                  onChange={(e) => setDigestModelSearch(e.target.value)}
+                  placeholder="Search models..."
+                  className="input-base mb-1"
+                />
                 <select
                   value={digestModel}
                   onChange={(e) => setDigestModel(e.target.value)}
                   className="input-base"
+                  size={5}
                 >
-                  {OPENROUTER_MODELS.map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.cost})</option>
-                  ))}
+                  {availableModels
+                    .filter(m =>
+                      m.name.toLowerCase().includes(digestModelSearch.toLowerCase()) ||
+                      m.id.toLowerCase().includes(digestModelSearch.toLowerCase())
+                    )
+                    .map(m => {
+                      const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
+                      const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
+                      const costStr = promptCost === 0 && completionCost === 0
+                        ? 'Free'
+                        : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
+                      return (
+                        <option key={m.id} value={m.id}>
+                          {m.name} — {costStr}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
             </div>
