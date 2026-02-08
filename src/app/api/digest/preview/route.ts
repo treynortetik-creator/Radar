@@ -5,7 +5,8 @@ import type { DigestType } from '@/lib/digest';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const digestType: DigestType = body.type === 'monthly' ? 'monthly' : 'weekly';
+    const validTypes: DigestType[] = ['weekly', 'monthly', '90day', '180day'];
+    const digestType: DigestType = validTypes.includes(body.type) ? body.type : 'weekly';
 
     const result = await generateDigest(digestType);
 

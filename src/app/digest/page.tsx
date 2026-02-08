@@ -23,9 +23,11 @@ const statusStyles: Record<string, { bg: string; text: string }> = {
 const typeStyles: Record<string, { bg: string; text: string }> = {
   weekly: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
   monthly: { bg: 'bg-violet-500/10', text: 'text-violet-400' },
+  '90day': { bg: 'bg-teal-500/10', text: 'text-teal-400' },
+  '180day': { bg: 'bg-rose-500/10', text: 'text-rose-400' },
 };
 
-type FilterType = 'all' | 'weekly' | 'monthly';
+type FilterType = 'all' | 'weekly' | 'monthly' | '90day' | '180day';
 
 function DigestListPage() {
   const [digests, setDigests] = useState<WeeklyDigest[]>([]);
@@ -66,18 +68,24 @@ function DigestListPage() {
       </div>
 
       {/* Filter Toggle */}
-      <div className="flex gap-1 bg-slate-900/60 border border-slate-700/40 rounded-lg p-1 w-fit mb-6">
-        {(['all', 'weekly', 'monthly'] as const).map((f) => (
+      <div className="flex flex-wrap gap-1 bg-slate-900/60 border border-slate-700/40 rounded-lg p-1 w-fit mb-6">
+        {([
+          { key: 'all', label: 'All' },
+          { key: 'weekly', label: 'Weekly' },
+          { key: 'monthly', label: 'Monthly' },
+          { key: '90day', label: '90-Day' },
+          { key: '180day', label: '180-Day' },
+        ] as const).map(({ key, label }) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 capitalize ${
-              filter === f
+            key={key}
+            onClick={() => setFilter(key)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+              filter === key
                 ? 'bg-slate-800 text-amber-400 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
             }`}
           >
-            {f}
+            {label}
           </button>
         ))}
       </div>
@@ -119,7 +127,7 @@ function DigestListPage() {
                         {formatDateRange(digest.week_start, digest.week_end)}
                       </h3>
                       <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${tStyle.bg} ${tStyle.text}`}>
-                        {digest.digest_type || 'weekly'}
+                        {{ weekly: 'Weekly', monthly: 'Monthly', '90day': '90-Day', '180day': '180-Day' }[digest.digest_type] || 'Weekly'}
                       </span>
                       <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${style.bg} ${style.text}`}>
                         {digest.status}

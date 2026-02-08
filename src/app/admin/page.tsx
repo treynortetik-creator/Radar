@@ -63,7 +63,7 @@ export default function AdminPage() {
   const [lastIngest, setLastIngest] = useState<string | null>(null);
 
   // Digest state
-  const [digestPeriod, setDigestPeriod] = useState<'weekly' | 'monthly'>('weekly');
+  const [digestPeriod, setDigestPeriod] = useState<'weekly' | 'monthly' | '90day' | '180day'>('weekly');
   const [digestConfig, setDigestConfig] = useState<DigestConfig | null>(null);
   const [digestPrompt, setDigestPrompt] = useState('');
   const [digestModel, setDigestModel] = useState('google/gemini-2.0-flash-001');
@@ -139,7 +139,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadDigestConfig = async (period?: 'weekly' | 'monthly') => {
+  const loadDigestConfig = async (period?: 'weekly' | 'monthly' | '90day' | '180day') => {
     const type = period || digestPeriod;
     try {
       const res = await fetch(`/api/digest/config?type=${type}`);
@@ -168,7 +168,7 @@ export default function AdminPage() {
     }
   };
 
-  const loadDigestHistory = async (period?: 'weekly' | 'monthly') => {
+  const loadDigestHistory = async (period?: 'weekly' | 'monthly' | '90day' | '180day') => {
     const type = period || digestPeriod;
     try {
       const res = await fetch(`/api/digest?limit=10&type=${type}`);
@@ -767,34 +767,28 @@ export default function AdminPage() {
         <>
           {/* Period Toggle */}
           <div className="flex gap-1 bg-slate-900/60 border border-slate-700/40 rounded-lg p-1 w-fit">
-            <button
-              onClick={() => {
-                setDigestPeriod('weekly');
-                loadDigestConfig('weekly');
-                loadDigestHistory('weekly');
-              }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
-                digestPeriod === 'weekly'
-                  ? 'bg-slate-800 text-amber-400 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              Weekly
-            </button>
-            <button
-              onClick={() => {
-                setDigestPeriod('monthly');
-                loadDigestConfig('monthly');
-                loadDigestHistory('monthly');
-              }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
-                digestPeriod === 'monthly'
-                  ? 'bg-slate-800 text-amber-400 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-              }`}
-            >
-              Monthly
-            </button>
+            {([
+              { key: 'weekly', label: 'Weekly' },
+              { key: 'monthly', label: 'Monthly' },
+              { key: '90day', label: '90-Day' },
+              { key: '180day', label: '180-Day' },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setDigestPeriod(key);
+                  loadDigestConfig(key);
+                  loadDigestHistory(key);
+                }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                  digestPeriod === key
+                    ? 'bg-slate-800 text-amber-400 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* Context Status */}

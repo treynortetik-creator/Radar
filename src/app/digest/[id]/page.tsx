@@ -130,7 +130,7 @@ function DigestViewPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h1 className="text-xl font-bold text-slate-100 mb-1">
-                  {digest.digest_type === 'monthly' ? 'Monthly' : 'Weekly'} Intel Digest
+                  {{ weekly: 'Weekly', monthly: 'Monthly', '90day': '90-Day', '180day': '180-Day' }[digest.digest_type] || 'Weekly'} Intel Digest
                 </h1>
                 <p className="text-base text-amber-400 font-medium mb-3">
                   {formatDateRange(digest.week_start, digest.week_end)}

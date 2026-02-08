@@ -141,7 +141,7 @@ export interface WeeklyDigest {
   status: string;
   delivered_at: string | null;
   created_at: string;
-  digest_type: 'weekly' | 'monthly';
+  digest_type: 'weekly' | 'monthly' | '90day' | '180day';
 }
 
 export interface DigestConfig {
@@ -155,6 +155,6 @@ export interface DigestConfig {
   model: string;
   is_active: boolean;
   updated_at: string;
-  digest_type: 'weekly' | 'monthly';
+  digest_type: 'weekly' | 'monthly' | '90day' | '180day';
   reasoning_effort: 'off' | 'low' | 'medium' | 'high';
 }

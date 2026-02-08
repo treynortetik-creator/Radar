@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './supabase-admin';
 import type { DigestConfig } from './db';
 
-export type DigestType = 'weekly' | 'monthly';
+export type DigestType = 'weekly' | 'monthly' | '90day' | '180day';
 
 interface DigestResult {
   content: string;
@@ -99,8 +99,10 @@ async function loadMasterContext(): Promise<string> {
 }
 
 const PERIOD_CONFIG = {
-  weekly: { days: 7, label: 'WEEK', maxTokens: 4000 },
-  monthly: { days: 30, label: 'MONTH', maxTokens: 6000 },
+  weekly: { days: 7, label: 'WEEK' },
+  monthly: { days: 30, label: 'MONTH' },
+  '90day': { days: 90, label: 'QUARTER' },
+  '180day': { days: 180, label: 'HALF-YEAR' },
 } as const;
 
 /**
@@ -163,8 +165,8 @@ export async function generateDigest(
     .single();
 
   if (prevDigest) {
-    const compLabel = digestType === 'monthly' ? "PREVIOUS MONTH'S REPORT" : "PREVIOUS WEEK'S REPORT";
-    previousDigestSummary = `\n\n## ${compLabel} (${prevDigest.week_start} to ${prevDigest.week_end}):\n${prevDigest.summary || prevDigest.content?.slice(0, 1000) || 'No previous summary available'}`;
+    const prevLabel = `PREVIOUS ${period.label}'S REPORT`;
+    previousDigestSummary = `\n\n## ${prevLabel} (${prevDigest.week_start} to ${prevDigest.week_end}):\n${prevDigest.summary || prevDigest.content?.slice(0, 1000) || 'No previous summary available'}`;
   }
 
   // 6. Build the prompt
@@ -173,10 +175,8 @@ export async function generateDigest(
     ? `\n\nCurrent Focus Areas: ${config.focus_areas.join(', ')}`
     : '';
 
-  const periodLabel = digestType === 'monthly' ? "THIS MONTH'S" : "THIS WEEK'S";
-  const noEventsMsg = digestType === 'monthly'
-    ? 'No events found in the past 30 days.'
-    : 'No events found in the past 7 days.';
+  const periodLabel = `THIS ${period.label}'S`;
+  const noEventsMsg = `No events found in the past ${period.days} days.`;
 
   const userMessage = `${config.system_prompt}
 ${focusAreasText}
@@ -200,7 +200,6 @@ ${eventsText || noEventsMsg}`;
     model,
     messages: [{ role: 'user', content: userMessage }],
     temperature: 0.3,
-    max_tokens: period.maxTokens,
   };
 
   const effort = config.reasoning_effort;

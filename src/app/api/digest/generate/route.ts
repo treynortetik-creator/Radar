@@ -6,8 +6,10 @@ import type { DigestType } from '@/lib/digest';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const digestType: DigestType = body.type === 'monthly' ? 'monthly' : 'weekly';
-    const periodDays = digestType === 'monthly' ? 30 : 7;
+    const validTypes: DigestType[] = ['weekly', 'monthly', '90day', '180day'];
+    const digestType: DigestType = validTypes.includes(body.type) ? body.type : 'weekly';
+    const periodDaysMap: Record<DigestType, number> = { weekly: 7, monthly: 30, '90day': 90, '180day': 180 };
+    const periodDays = periodDaysMap[digestType];
 
     const result = await generateDigest(digestType);
 

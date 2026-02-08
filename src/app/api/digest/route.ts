@@ -7,7 +7,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const type = searchParams.get('type'); // 'weekly' | 'monthly' | null (all)
+    const type = searchParams.get('type'); // 'weekly' | 'monthly' | '90day' | '180day' | null (all)
+    const validTypes = ['weekly', 'monthly', '90day', '180day'];
 
     let query = supabaseAdmin
       .from('weekly_digests')
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (type === 'weekly' || type === 'monthly') {
+    if (type && validTypes.includes(type)) {
       query = query.eq('digest_type', type);
     }
 
