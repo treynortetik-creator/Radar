@@ -71,6 +71,7 @@ export default function AdminPage() {
   const [digestDeliveryDay, setDigestDeliveryDay] = useState(0);
   const [digestDeliveryDayOfMonth, setDigestDeliveryDayOfMonth] = useState(1);
   const [digestDeliveryHour, setDigestDeliveryHour] = useState(18);
+  const [digestReasoningEffort, setDigestReasoningEffort] = useState<'off' | 'low' | 'medium' | 'high'>('off');
   const [newFocusArea, setNewFocusArea] = useState('');
   const [digestSaving, setDigestSaving] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -151,6 +152,7 @@ export default function AdminPage() {
         setDigestDeliveryDay(data.config.delivery_day ?? 0);
         setDigestDeliveryDayOfMonth(data.config.delivery_day_of_month ?? 1);
         setDigestDeliveryHour(data.config.delivery_hour ?? 18);
+        setDigestReasoningEffort(data.config.reasoning_effort || 'off');
       } else {
         setDigestConfig(null);
         setDigestPrompt('');
@@ -159,6 +161,7 @@ export default function AdminPage() {
         setDigestDeliveryDay(0);
         setDigestDeliveryDayOfMonth(1);
         setDigestDeliveryHour(18);
+        setDigestReasoningEffort('off');
       }
     } catch (err) {
       console.error('Failed to load digest config:', err);
@@ -220,6 +223,7 @@ export default function AdminPage() {
           delivery_day: digestDeliveryDay,
           delivery_day_of_month: digestDeliveryDayOfMonth,
           delivery_hour: digestDeliveryHour,
+          reasoning_effort: digestReasoningEffort,
         }),
       });
       if (!res.ok) throw new Error('Failed to save');
@@ -879,7 +883,7 @@ export default function AdminPage() {
           {/* Schedule & Model */}
           <section className="card-base p-6">
             <h2 className="text-lg font-semibold text-slate-100 mb-4">Schedule & Model</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
               <div>
                 {digestPeriod === 'weekly' ? (
                   <>
@@ -954,6 +958,20 @@ export default function AdminPage() {
                       );
                     })}
                 </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1.5">Thinking Mode</label>
+                <select
+                  value={digestReasoningEffort}
+                  onChange={(e) => setDigestReasoningEffort(e.target.value as 'off' | 'low' | 'medium' | 'high')}
+                  className="input-base"
+                >
+                  <option value="off">Off</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </select>
+                <p className="text-[10px] text-slate-500 mt-1">Extended reasoning for supported models</p>
               </div>
             </div>
 

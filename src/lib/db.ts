@@ -156,4 +156,5 @@ export interface DigestConfig {
   is_active: boolean;
   updated_at: string;
   digest_type: 'weekly' | 'monthly';
+  reasoning_effort: 'off' | 'low' | 'medium' | 'high';
 }

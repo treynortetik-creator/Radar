@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, system_prompt, focus_areas, output_format, delivery_day, delivery_day_of_month, delivery_hour, model } = body;
+    const { id, system_prompt, focus_areas, output_format, delivery_day, delivery_day_of_month, delivery_hour, model, reasoning_effort } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Config ID required' }, { status: 400 });
@@ -42,6 +42,7 @@ export async function PUT(request: Request) {
     if (delivery_day_of_month !== undefined) updates.delivery_day_of_month = delivery_day_of_month;
     if (delivery_hour !== undefined) updates.delivery_hour = delivery_hour;
     if (model !== undefined) updates.model = model;
+    if (reasoning_effort !== undefined) updates.reasoning_effort = reasoning_effort;
 
     const { data, error } = await supabaseAdmin
       .from('digest_config')

@@ -196,18 +196,25 @@ ${eventsText || noEventsMsg}`;
 
   const model = config.model || 'google/gemini-2.0-flash-001';
 
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages: [{ role: 'user', content: userMessage }],
+    temperature: 0.3,
+    max_tokens: period.maxTokens,
+  };
+
+  const effort = config.reasoning_effort;
+  if (effort && effort !== 'off') {
+    requestBody.reasoning = { effort };
+  }
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.3,
-      max_tokens: period.maxTokens,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
