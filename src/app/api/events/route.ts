@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const offset = parseInt(searchParams.get('offset') || '0');
 
   // Build query with join to get competitor name
-  let query = supabase
+  let query = supabaseAdmin
     .from('competitor_events')
     .select(`
       *,
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   // Apply filters
   if (competitor) {
     // Get competitor ID first for reliable filtering
-    const { data: compData } = await supabase
+    const { data: compData } = await supabaseAdmin
       .from('competitors')
       .select('id')
       .eq('name', competitor)

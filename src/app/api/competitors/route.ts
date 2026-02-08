@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
   // Get all events with competitor info
-  const { data: events, error } = await supabase
+  const { data: events, error } = await supabaseAdmin
     .from('competitor_events')
     .select(`
       priority_tier,

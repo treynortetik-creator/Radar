@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 // Helper to extract competitor name from Supabase join (handles array or object)
 function getCompetitorName(comp: unknown): string {
@@ -9,7 +9,7 @@ function getCompetitorName(comp: unknown): string {
 
 export async function GET() {
   // Fetch all events with competitor info for aggregation
-  const { data: events, error } = await supabase
+  const { data: events, error } = await supabaseAdmin
     .from('competitor_events')
     .select(`
       priority_tier,

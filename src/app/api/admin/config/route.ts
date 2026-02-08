@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('admin_config')
       .select('key, value');
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     // Update model
     if (model) {
-      const { error: modelError } = await supabase
+      const { error: modelError } = await supabaseAdmin
         .from('admin_config')
         .upsert({ key: 'openrouter_model', value: model, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (modelError) throw modelError;
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     // Update system prompt
     if (system_prompt !== undefined) {
-      const { error: promptError } = await supabase
+      const { error: promptError } = await supabaseAdmin
         .from('admin_config')
         .upsert({ key: 'system_prompt', value: system_prompt, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (promptError) throw promptError;
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     // Update master context
     if (body.master_context !== undefined) {
-      const { error: contextError } = await supabase
+      const { error: contextError } = await supabaseAdmin
         .from('admin_config')
         .upsert({ key: 'master_context', value: body.master_context, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (contextError) throw contextError;
