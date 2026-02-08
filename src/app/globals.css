@@ -550,6 +550,36 @@ select {
   box-shadow: 0 0 0 2px var(--surface-base), 0 0 0 4px rgba(245, 158, 11, 0.5);
 }
 
+/* ==================== PROSE (Digest Markdown) ==================== */
+
+.prose-radar {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+.prose-radar p,
+.prose-radar li,
+.prose-radar h1,
+.prose-radar h2,
+.prose-radar h3,
+.prose-radar h4,
+.prose-radar strong,
+.prose-radar em,
+.prose-radar a {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.prose-radar pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.prose-radar a {
+  word-break: break-all;
+}
+
 /* ==================== RESPONSIVE ==================== */
 
 @media (max-width: 640px) {

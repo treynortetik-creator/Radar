@@ -99,8 +99,8 @@ async function loadMasterContext(): Promise<string> {
 }
 
 const PERIOD_CONFIG = {
-  weekly: { days: 7, eventLimit: 40, label: 'WEEK', maxTokens: 4000 },
-  monthly: { days: 30, eventLimit: 100, label: 'MONTH', maxTokens: 6000 },
+  weekly: { days: 7, label: 'WEEK', maxTokens: 4000 },
+  monthly: { days: 30, label: 'MONTH', maxTokens: 6000 },
 } as const;
 
 /**
@@ -129,8 +129,7 @@ export async function generateDigest(
       competitors!competitor_events_competitor_id_fkey (name)
     `)
     .gte('published_at', periodStart.toISOString())
-    .order('priority_score', { ascending: false })
-    .limit(period.eventLimit);
+    .order('priority_score', { ascending: false });
 
   if (eventsError) throw new Error(`Failed to fetch events: ${eventsError.message}`);
 

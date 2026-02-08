@@ -127,12 +127,34 @@ function DigestViewPage() {
             <DocumentIcon className="w-6 h-6 text-slate-900" />
           </div>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-slate-100 mb-1">
-              {digest.digest_type === 'monthly' ? 'Monthly' : 'Weekly'} Intel Digest
-            </h1>
-            <p className="text-base text-amber-400 font-medium mb-3">
-              {formatDateRange(digest.week_start, digest.week_end)}
-            </p>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-xl font-bold text-slate-100 mb-1">
+                  {digest.digest_type === 'monthly' ? 'Monthly' : 'Weekly'} Intel Digest
+                </h1>
+                <p className="text-base text-amber-400 font-medium mb-3">
+                  {formatDateRange(digest.week_start, digest.week_end)}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  const filename = `${digest.digest_type || 'weekly'}-digest-${digest.week_start}-to-${digest.week_end}.md`;
+                  const blob = new Blob([digest.content], { type: 'text/markdown' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = filename;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+                className="btn-secondary flex items-center gap-2 text-sm shrink-0"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Export .md
+              </button>
+            </div>
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <span>{digest.event_count || 0} events analyzed</span>
               {digest.model_used && (
@@ -173,7 +195,7 @@ function DigestViewPage() {
       )}
 
       {/* Digest Content */}
-      <div className="card-base p-6 sm:p-8">
+      <div className="card-base p-6 sm:p-8 overflow-hidden">
         <div
           className="prose-radar"
           dangerouslySetInnerHTML={{ __html: renderMarkdown(digest.content) }}
