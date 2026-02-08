@@ -1,6 +1,8 @@
 import { supabaseAdmin } from './supabase-admin';
 import type { DigestConfig } from './db';
 
+export type DigestType = 'weekly' | 'monthly';
+
 interface DigestResult {
   content: string;
   summary: string;
@@ -8,6 +10,7 @@ interface DigestResult {
   competitor_breakdown: Record<string, number>;
   model_used: string;
   tokens_used: number | null;
+  digest_type: DigestType;
 }
 
 interface EventRow {
@@ -95,19 +98,29 @@ async function loadMasterContext(): Promise<string> {
   }
 }
 
+const PERIOD_CONFIG = {
+  weekly: { days: 7, eventLimit: 40, label: 'WEEK', maxTokens: 4000 },
+  monthly: { days: 30, eventLimit: 100, label: 'MONTH', maxTokens: 6000 },
+} as const;
+
 /**
- * Generate a weekly intel digest using AI
+ * Generate an intel digest using AI
  */
-export async function generateDigest(configOverride?: Partial<DigestConfig>): Promise<DigestResult> {
-  // 1. Calculate date range (past 7 days)
+export async function generateDigest(
+  digestType: DigestType = 'weekly',
+  configOverride?: Partial<DigestConfig>
+): Promise<DigestResult> {
+  const period = PERIOD_CONFIG[digestType];
+
+  // 1. Calculate date range
   const now = new Date();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const periodStart = new Date(now);
+  periodStart.setDate(periodStart.getDate() - period.days);
 
-  const weekEnd = now.toISOString().split('T')[0];
-  const weekStart = sevenDaysAgo.toISOString().split('T')[0];
+  const endDate = now.toISOString().split('T')[0];
+  const startDate = periodStart.toISOString().split('T')[0];
 
-  // 2. Fetch events from past 7 days
+  // 2. Fetch events from the period
   const { data: events, error: eventsError } = await supabaseAdmin
     .from('competitor_events')
     .select(`
@@ -115,41 +128,44 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
       threat_level, priority_score, priority_tier, key_takeaway,
       competitors!competitor_events_competitor_id_fkey (name)
     `)
-    .gte('published_at', sevenDaysAgo.toISOString())
+    .gte('published_at', periodStart.toISOString())
     .order('priority_score', { ascending: false })
-    .limit(40);
+    .limit(period.eventLimit);
 
   if (eventsError) throw new Error(`Failed to fetch events: ${eventsError.message}`);
-  
+
   const typedEvents = (events || []) as unknown as EventRow[];
 
   // 3. Load master context
   const masterContext = await loadMasterContext();
 
-  // 4. Load digest config
+  // 4. Load digest config for this type
   const { data: configData, error: configError } = await supabaseAdmin
     .from('digest_config')
     .select('*')
     .eq('is_active', true)
+    .eq('digest_type', digestType)
     .order('id', { ascending: false })
     .limit(1)
     .single();
 
-  if (configError) throw new Error(`Failed to load digest config: ${configError.message}`);
+  if (configError) throw new Error(`Failed to load ${digestType} digest config: ${configError.message}`);
 
   const config = { ...configData, ...configOverride } as DigestConfig;
 
-  // 5. Load previous week's digest for week-over-week comparison
+  // 5. Load previous digest of the same type for comparison
   let previousDigestSummary = '';
   const { data: prevDigest } = await supabaseAdmin
     .from('weekly_digests')
     .select('summary, content, week_start, week_end')
+    .eq('digest_type', digestType)
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
 
   if (prevDigest) {
-    previousDigestSummary = `\n\n## PREVIOUS WEEK'S REPORT (${prevDigest.week_start} to ${prevDigest.week_end}):\n${prevDigest.summary || prevDigest.content?.slice(0, 1000) || 'No previous summary available'}`;
+    const compLabel = digestType === 'monthly' ? "PREVIOUS MONTH'S REPORT" : "PREVIOUS WEEK'S REPORT";
+    previousDigestSummary = `\n\n## ${compLabel} (${prevDigest.week_start} to ${prevDigest.week_end}):\n${prevDigest.summary || prevDigest.content?.slice(0, 1000) || 'No previous summary available'}`;
   }
 
   // 6. Build the prompt
@@ -158,6 +174,11 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
     ? `\n\nCurrent Focus Areas: ${config.focus_areas.join(', ')}`
     : '';
 
+  const periodLabel = digestType === 'monthly' ? "THIS MONTH'S" : "THIS WEEK'S";
+  const noEventsMsg = digestType === 'monthly'
+    ? 'No events found in the past 30 days.'
+    : 'No events found in the past 7 days.';
+
   const userMessage = `${config.system_prompt}
 ${focusAreasText}
 
@@ -165,10 +186,10 @@ ${focusAreasText}
 ${masterContext}
 ${previousDigestSummary}
 
-## THIS WEEK'S COMPETITOR EVENTS (${weekStart} to ${weekEnd}):
+## ${periodLabel} COMPETITOR EVENTS (${startDate} to ${endDate}):
 Total events: ${typedEvents.length}
 
-${eventsText || 'No events found in the past 7 days.'}`;
+${eventsText || noEventsMsg}`;
 
   // 7. Call OpenRouter API
   const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -186,7 +207,7 @@ ${eventsText || 'No events found in the past 7 days.'}`;
       model,
       messages: [{ role: 'user', content: userMessage }],
       temperature: 0.3,
-      max_tokens: 4000,
+      max_tokens: period.maxTokens,
     }),
   });
 
@@ -209,5 +230,6 @@ ${eventsText || 'No events found in the past 7 days.'}`;
     competitor_breakdown: buildBreakdown(typedEvents),
     model_used: model,
     tokens_used: tokensUsed,
+    digest_type: digestType,
   };
 }

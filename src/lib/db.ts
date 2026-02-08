@@ -141,6 +141,7 @@ export interface WeeklyDigest {
   status: string;
   delivered_at: string | null;
   created_at: string;
+  digest_type: 'weekly' | 'monthly';
 }
 
 export interface DigestConfig {
@@ -149,8 +150,10 @@ export interface DigestConfig {
   focus_areas: string[] | null;
   output_format: string;
   delivery_day: number;
+  delivery_day_of_month: number | null;
   delivery_hour: number;
   model: string;
   is_active: boolean;
   updated_at: string;
+  digest_type: 'weekly' | 'monthly';
 }

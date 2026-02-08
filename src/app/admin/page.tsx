@@ -63,11 +63,13 @@ export default function AdminPage() {
   const [lastIngest, setLastIngest] = useState<string | null>(null);
 
   // Digest state
+  const [digestPeriod, setDigestPeriod] = useState<'weekly' | 'monthly'>('weekly');
   const [digestConfig, setDigestConfig] = useState<DigestConfig | null>(null);
   const [digestPrompt, setDigestPrompt] = useState('');
   const [digestModel, setDigestModel] = useState('google/gemini-2.0-flash-001');
   const [digestFocusAreas, setDigestFocusAreas] = useState<string[]>([]);
   const [digestDeliveryDay, setDigestDeliveryDay] = useState(0);
+  const [digestDeliveryDayOfMonth, setDigestDeliveryDayOfMonth] = useState(1);
   const [digestDeliveryHour, setDigestDeliveryHour] = useState(18);
   const [newFocusArea, setNewFocusArea] = useState('');
   const [digestSaving, setDigestSaving] = useState(false);
@@ -136,9 +138,10 @@ export default function AdminPage() {
     }
   };
 
-  const loadDigestConfig = async () => {
+  const loadDigestConfig = async (period?: 'weekly' | 'monthly') => {
+    const type = period || digestPeriod;
     try {
-      const res = await fetch('/api/digest/config');
+      const res = await fetch(`/api/digest/config?type=${type}`);
       const data = await res.json();
       if (data.config) {
         setDigestConfig(data.config);
@@ -146,16 +149,26 @@ export default function AdminPage() {
         setDigestModel(data.config.model || 'google/gemini-2.0-flash-001');
         setDigestFocusAreas(data.config.focus_areas || []);
         setDigestDeliveryDay(data.config.delivery_day ?? 0);
+        setDigestDeliveryDayOfMonth(data.config.delivery_day_of_month ?? 1);
         setDigestDeliveryHour(data.config.delivery_hour ?? 18);
+      } else {
+        setDigestConfig(null);
+        setDigestPrompt('');
+        setDigestModel('google/gemini-2.0-flash-001');
+        setDigestFocusAreas([]);
+        setDigestDeliveryDay(0);
+        setDigestDeliveryDayOfMonth(1);
+        setDigestDeliveryHour(18);
       }
     } catch (err) {
       console.error('Failed to load digest config:', err);
     }
   };
 
-  const loadDigestHistory = async () => {
+  const loadDigestHistory = async (period?: 'weekly' | 'monthly') => {
+    const type = period || digestPeriod;
     try {
-      const res = await fetch('/api/digest?limit=10');
+      const res = await fetch(`/api/digest?limit=10&type=${type}`);
       const data = await res.json();
       setDigestHistory(data.digests || []);
     } catch (err) {
@@ -205,6 +218,7 @@ export default function AdminPage() {
           model: digestModel,
           focus_areas: digestFocusAreas,
           delivery_day: digestDeliveryDay,
+          delivery_day_of_month: digestDeliveryDayOfMonth,
           delivery_hour: digestDeliveryHour,
         }),
       });
@@ -223,7 +237,11 @@ export default function AdminPage() {
     setPreviewContent(null);
     setMessage(null);
     try {
-      const res = await fetch('/api/digest/preview', { method: 'POST' });
+      const res = await fetch('/api/digest/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: digestPeriod }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Preview failed');
       setPreviewContent(data.content);
@@ -239,7 +257,11 @@ export default function AdminPage() {
     setGenerating(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/digest/generate', { method: 'POST' });
+      const res = await fetch('/api/digest/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: digestPeriod }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
       setMessage({ type: 'success', text: 'Digest generated and saved successfully!' });
@@ -347,7 +369,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Control Panel</h1>
-            <p className="text-sm text-slate-500">Configure AI model, prompts, feeds, and weekly digest</p>
+            <p className="text-sm text-slate-500">Configure AI model, prompts, feeds, and digests</p>
           </div>
         </div>
 
@@ -373,7 +395,7 @@ export default function AdminPage() {
             }`}
           >
             <DocumentIcon className="w-4 h-4" />
-            Weekly Digest
+            Digests
           </button>
         </div>
       </div>
@@ -736,9 +758,41 @@ export default function AdminPage() {
         </>
       )}
 
-      {/* =================== WEEKLY DIGEST TAB =================== */}
+      {/* =================== DIGEST TAB =================== */}
       {activeTab === 'digest' && (
         <>
+          {/* Period Toggle */}
+          <div className="flex gap-1 bg-slate-900/60 border border-slate-700/40 rounded-lg p-1 w-fit">
+            <button
+              onClick={() => {
+                setDigestPeriod('weekly');
+                loadDigestConfig('weekly');
+                loadDigestHistory('weekly');
+              }}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                digestPeriod === 'weekly'
+                  ? 'bg-slate-800 text-amber-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              Weekly
+            </button>
+            <button
+              onClick={() => {
+                setDigestPeriod('monthly');
+                loadDigestConfig('monthly');
+                loadDigestHistory('monthly');
+              }}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                digestPeriod === 'monthly'
+                  ? 'bg-slate-800 text-amber-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              Monthly
+            </button>
+          </div>
+
           {/* Context Status */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/40 border border-slate-700/30">
             <span className="text-xs text-slate-400">Master Context:</span>
@@ -761,7 +815,7 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-100">Digest System Prompt</h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Master prompt that guides weekly digest generation
+                  Master prompt that guides {digestPeriod} digest generation
                 </p>
               </div>
               <span className="text-xs text-slate-500 font-mono">{digestPrompt.length.toLocaleString()} chars</span>
@@ -827,16 +881,33 @@ export default function AdminPage() {
             <h2 className="text-lg font-semibold text-slate-100 mb-4">Schedule & Model</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
               <div>
-                <label className="block text-xs text-slate-400 mb-1.5">Delivery Day</label>
-                <select
-                  value={digestDeliveryDay}
-                  onChange={(e) => setDigestDeliveryDay(Number(e.target.value))}
-                  className="input-base"
-                >
-                  {DAYS_OF_WEEK.map((day, i) => (
-                    <option key={i} value={i}>{day}</option>
-                  ))}
-                </select>
+                {digestPeriod === 'weekly' ? (
+                  <>
+                    <label className="block text-xs text-slate-400 mb-1.5">Delivery Day</label>
+                    <select
+                      value={digestDeliveryDay}
+                      onChange={(e) => setDigestDeliveryDay(Number(e.target.value))}
+                      className="input-base"
+                    >
+                      {DAYS_OF_WEEK.map((day, i) => (
+                        <option key={i} value={i}>{day}</option>
+                      ))}
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <label className="block text-xs text-slate-400 mb-1.5">Delivery Day of Month</label>
+                    <select
+                      value={digestDeliveryDayOfMonth}
+                      onChange={(e) => setDigestDeliveryDayOfMonth(Number(e.target.value))}
+                      className="input-base"
+                    >
+                      {Array.from({ length: 28 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1.5">Delivery Hour (UTC)</label>
@@ -967,7 +1038,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-100">Digest History</h2>
-                <p className="text-xs text-slate-500 mt-1">Recent weekly digests</p>
+                <p className="text-xs text-slate-500 mt-1">Recent {digestPeriod} digests</p>
               </div>
               <Link
                 href="/digest"

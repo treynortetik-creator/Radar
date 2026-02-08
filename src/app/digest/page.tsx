@@ -20,18 +20,28 @@ const statusStyles: Record<string, { bg: string; text: string }> = {
   archived: { bg: 'bg-slate-500/10', text: 'text-slate-400' },
 };
 
+const typeStyles: Record<string, { bg: string; text: string }> = {
+  weekly: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
+  monthly: { bg: 'bg-violet-500/10', text: 'text-violet-400' },
+};
+
+type FilterType = 'all' | 'weekly' | 'monthly';
+
 function DigestListPage() {
   const [digests, setDigests] = useState<WeeklyDigest[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [filter, setFilter] = useState<FilterType>('all');
 
   useEffect(() => {
     loadDigests();
-  }, []);
+  }, [filter]);
 
   const loadDigests = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/digest?limit=50');
+      const typeParam = filter !== 'all' ? `&type=${filter}` : '';
+      const res = await fetch(`/api/digest?limit=50${typeParam}`);
       const data = await res.json();
       setDigests(data.digests || []);
       setTotal(data.total || 0);
@@ -42,33 +52,46 @@ function DigestListPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <LoadingRadar />
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-8">
+      <div className="flex items-center gap-3 mb-6">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center">
           <DocumentIcon className="w-5 h-5 text-slate-900" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Weekly Intel Digests</h1>
+          <h1 className="text-2xl font-bold text-slate-100">Intel Digests</h1>
           <p className="text-sm text-slate-500">{total} digest{total !== 1 ? 's' : ''} generated</p>
         </div>
       </div>
 
-      {digests.length === 0 ? (
+      {/* Filter Toggle */}
+      <div className="flex gap-1 bg-slate-900/60 border border-slate-700/40 rounded-lg p-1 w-fit mb-6">
+        {(['all', 'weekly', 'monthly'] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-150 capitalize ${
+              filter === f
+                ? 'bg-slate-800 text-amber-400 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-24">
+          <LoadingRadar />
+        </div>
+      ) : digests.length === 0 ? (
         <div className="card-base p-12 text-center">
           <DocumentIcon className="w-12 h-12 mx-auto mb-4 text-slate-600" />
           <h3 className="text-lg font-semibold text-slate-300 mb-2">No Digests Yet</h3>
           <p className="text-sm text-slate-500 mb-4">
-            Generate your first weekly intel digest from the{' '}
+            Generate your first intel digest from the{' '}
             <Link href="/admin" className="text-amber-400 hover:text-amber-300 underline">
               Control Panel
             </Link>.
@@ -78,6 +101,7 @@ function DigestListPage() {
         <div className="space-y-3">
           {digests.map((digest) => {
             const style = statusStyles[digest.status] || statusStyles.generated;
+            const tStyle = typeStyles[digest.digest_type] || typeStyles.weekly;
             const snippet = digest.summary
               ? digest.summary.replace(/^#.*\n*/gm, '').trim().slice(0, 200)
               : digest.content.slice(0, 200);
@@ -94,6 +118,9 @@ function DigestListPage() {
                       <h3 className="text-base font-semibold text-slate-200 group-hover:text-amber-400 transition-colors">
                         {formatDateRange(digest.week_start, digest.week_end)}
                       </h3>
+                      <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${tStyle.bg} ${tStyle.text}`}>
+                        {digest.digest_type || 'weekly'}
+                      </span>
                       <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${style.bg} ${style.text}`}>
                         {digest.status}
                       </span>

@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { generateDigest } from '@/lib/digest';
+import type { DigestType } from '@/lib/digest';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const result = await generateDigest();
+    const body = await request.json().catch(() => ({}));
+    const digestType: DigestType = body.type === 'monthly' ? 'monthly' : 'weekly';
+
+    const result = await generateDigest(digestType);
 
     return NextResponse.json({
       success: true,

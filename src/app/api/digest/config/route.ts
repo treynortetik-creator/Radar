@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const type = request.nextUrl.searchParams.get('type') || 'weekly';
+
     const { data, error } = await supabaseAdmin
       .from('digest_config')
       .select('*')
       .eq('is_active', true)
+      .eq('digest_type', type)
       .order('id', { ascending: false })
       .limit(1)
       .single();
@@ -25,7 +28,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, system_prompt, focus_areas, output_format, delivery_day, delivery_hour, model } = body;
+    const { id, system_prompt, focus_areas, output_format, delivery_day, delivery_day_of_month, delivery_hour, model } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Config ID required' }, { status: 400 });
@@ -36,6 +39,7 @@ export async function PUT(request: Request) {
     if (focus_areas !== undefined) updates.focus_areas = focus_areas;
     if (output_format !== undefined) updates.output_format = output_format;
     if (delivery_day !== undefined) updates.delivery_day = delivery_day;
+    if (delivery_day_of_month !== undefined) updates.delivery_day_of_month = delivery_day_of_month;
     if (delivery_hour !== undefined) updates.delivery_hour = delivery_hour;
     if (model !== undefined) updates.model = model;
 

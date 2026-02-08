@@ -1,20 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { generateDigest, extractSummary } from '@/lib/digest';
+import type { DigestType } from '@/lib/digest';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const result = await generateDigest();
+    const body = await request.json().catch(() => ({}));
+    const digestType: DigestType = body.type === 'monthly' ? 'monthly' : 'weekly';
+    const periodDays = digestType === 'monthly' ? 30 : 7;
+
+    const result = await generateDigest(digestType);
 
     const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const periodStart = new Date(now);
+    periodStart.setDate(periodStart.getDate() - periodDays);
 
     // Store the digest
     const { data, error } = await supabaseAdmin
       .from('weekly_digests')
       .insert({
-        week_start: sevenDaysAgo.toISOString().split('T')[0],
+        week_start: periodStart.toISOString().split('T')[0],
         week_end: now.toISOString().split('T')[0],
         content: result.content,
         summary: extractSummary(result.content),
@@ -22,6 +27,7 @@ export async function POST() {
         competitor_breakdown: result.competitor_breakdown,
         model_used: result.model_used,
         tokens_used: result.tokens_used,
+        digest_type: digestType,
         status: 'generated',
       })
       .select()
