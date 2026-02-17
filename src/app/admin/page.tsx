@@ -714,7 +714,7 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-medium text-slate-200">{feed.name}</span>
                           {feed.is_job_board && (
-                            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-violet-500/20 text-violet-400 border border-violet-500/30 rounded">
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-lime-500/15 text-lime-300 border border-lime-500/30 rounded">
                               Jobs
                             </span>
                           )}
@@ -1081,7 +1081,7 @@ export default function AdminPage() {
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                             d.status === 'delivered'
                               ? 'bg-emerald-500/10 text-emerald-400'
-                              : 'bg-blue-500/10 text-blue-400'
+                              : 'bg-lime-500/10 text-lime-300'
                           }`}>
                             {d.status}
                           </span>

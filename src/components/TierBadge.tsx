@@ -26,10 +26,10 @@ const tierConfig: Record<string, {
     shieldVariant: 'alert',
   },
   Medium: { 
-    bg: 'bg-yellow-500/15', 
-    text: 'text-yellow-400', 
-    border: 'border-yellow-500/30', 
-    dot: 'bg-yellow-500',
+    bg: 'bg-amber-500/15', 
+    text: 'text-amber-400', 
+    border: 'border-amber-500/30', 
+    dot: 'bg-amber-500',
     shieldVariant: 'default',
   },
   Low: { 
@@ -71,7 +71,7 @@ export function TierBadge({ tier, size = 'sm', showIcon = false }: TierBadgeProp
   return (
     <span 
       className={`
-        inline-flex items-center rounded-full font-semibold border uppercase tracking-wider
+        inline-flex items-center rounded-md font-semibold border uppercase tracking-[0.08em]
         ${config.bg} ${config.text} ${config.border} ${sizeClasses[size]} ${config.glow || ''}
       `}
     >
@@ -112,7 +112,7 @@ export function TierDot({ tier, size = 'sm' }: { tier: string; size?: 'xs' | 'sm
 
 // For showing threat level as a visual bar
 export function ThreatBar({ level, max = 3 }: { level: number; max?: number }) {
-  const colors = ['bg-emerald-500', 'bg-yellow-500', 'bg-orange-500', 'bg-red-500'];
+  const colors = ['bg-emerald-500', 'bg-amber-500', 'bg-orange-500', 'bg-red-500'];
   const color = colors[Math.min(level, colors.length - 1)];
   
   return (
@@ -122,7 +122,7 @@ export function ThreatBar({ level, max = 3 }: { level: number; max?: number }) {
           key={i}
           className={`
             w-2 h-3 rounded-sm transition-all duration-300
-            ${i < level ? color : 'bg-slate-700'}
+            ${i < level ? color : 'bg-[#2a341f]'}
           `}
         />
       ))}

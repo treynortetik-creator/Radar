@@ -1,7 +1,5 @@
 'use client';
 
-import { TargetIcon } from '@/components/icons';
-
 // Competitor brand colors with enhanced visibility
 const COMPETITOR_COLORS: Record<string, { primary: string; secondary: string }> = {
   'Inspiren': { primary: '#CC4125', secondary: '#ff5a3c' },
@@ -21,12 +19,12 @@ export function CompetitorBadge({
   showDot?: boolean;
   size?: 'xs' | 'sm' | 'md';
 }) {
-  const colors = COMPETITOR_COLORS[competitor] || { primary: '#94a3b8', secondary: '#b0bec5' };
+  const colors = COMPETITOR_COLORS[competitor] || { primary: '#7f9152', secondary: '#c1cb8e' };
   
   const sizeClasses = {
     xs: 'px-1.5 py-0.5 text-[10px] gap-1',
-    sm: 'px-2 py-0.5 text-xs gap-1.5',
-    md: 'px-2.5 py-1 text-sm gap-2',
+    sm: 'px-2 py-0.5 text-[11px] gap-1.5',
+    md: 'px-2.5 py-1 text-xs gap-2',
   };
   
   const dotSizes = {
@@ -37,12 +35,11 @@ export function CompetitorBadge({
 
   return (
     <span 
-      className={`inline-flex items-center rounded-lg font-medium transition-all duration-150 ${sizeClasses[size]}`}
+      className={`inline-flex items-center rounded-md font-semibold uppercase tracking-[0.08em] border transition-all duration-150 ${sizeClasses[size]}`}
       style={{ 
-        backgroundColor: `${colors.primary}15`, 
+        backgroundColor: `${colors.primary}14`, 
         color: colors.secondary,
-        borderWidth: '1px',
-        borderColor: `${colors.primary}30`,
+        borderColor: `${colors.primary}40`,
       }}
     >
       {showDot && (
@@ -69,24 +66,24 @@ export function CompetitorPill({
   isActive?: boolean;
   onClick?: () => void;
 }) {
-  const colors = COMPETITOR_COLORS[competitor] || { primary: '#94a3b8', secondary: '#b0bec5' };
+  const colors = COMPETITOR_COLORS[competitor] || { primary: '#7f9152', secondary: '#c1cb8e' };
   
   return (
     <button 
       onClick={onClick}
       className={`
-        group relative inline-flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium 
-        transition-all duration-200 border overflow-hidden
+        group relative inline-flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold 
+        uppercase tracking-[0.08em] transition-all duration-200 border overflow-hidden
         ${isActive 
-          ? 'shadow-lg scale-[1.02]' 
-          : 'hover:scale-[1.01] hover:shadow-md'
+          ? 'shadow-[0_0_24px_-14px_rgba(219,197,94,0.9)]' 
+          : 'hover:translate-y-[-1px]'
         }
       `}
       style={{ 
-        backgroundColor: isActive ? `${colors.primary}20` : `${colors.primary}08`, 
-        borderColor: isActive ? `${colors.primary}60` : `${colors.primary}25`,
+        backgroundColor: isActive ? `${colors.primary}1e` : `${colors.primary}0d`, 
+        borderColor: isActive ? `${colors.primary}58` : `${colors.primary}2f`,
         color: colors.secondary,
-        boxShadow: isActive ? `0 4px 20px -5px ${colors.primary}40` : undefined,
+        boxShadow: isActive ? `inset 0 0 0 1px ${colors.primary}2f` : undefined,
       }}
     >
       {/* Subtle gradient overlay */}
@@ -101,7 +98,7 @@ export function CompetitorPill({
       <div className="relative flex items-center gap-2.5">
         {/* Competitor indicator */}
         <div 
-          className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white/10"
+          className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-[#2f3b22]"
           style={{ backgroundColor: colors.primary }} 
         />
         
@@ -112,7 +109,7 @@ export function CompetitorPill({
         <span 
           className="text-xs font-bold px-2 py-0.5 rounded-md"
           style={{ 
-            backgroundColor: `${colors.primary}25`,
+            backgroundColor: `${colors.primary}26`,
             color: colors.secondary,
           }}
         >
@@ -139,7 +136,7 @@ export function CompetitorAvatar({
   competitor: string;
   size?: 'sm' | 'md' | 'lg';
 }) {
-  const colors = COMPETITOR_COLORS[competitor] || { primary: '#94a3b8', secondary: '#b0bec5' };
+  const colors = COMPETITOR_COLORS[competitor] || { primary: '#7f9152', secondary: '#c1cb8e' };
   
   const sizeClasses = {
     sm: 'w-8 h-8 text-xs',
@@ -149,11 +146,12 @@ export function CompetitorAvatar({
   
   return (
     <div 
-      className={`${sizeClasses[size]} rounded-xl flex items-center justify-center font-bold shadow-lg`}
+      className={`${sizeClasses[size]} rounded-lg flex items-center justify-center font-bold shadow-lg border`}
       style={{ 
-        backgroundColor: `${colors.primary}25`,
+        backgroundColor: `${colors.primary}22`,
         color: colors.secondary,
-        boxShadow: `0 4px 15px -5px ${colors.primary}40`,
+        borderColor: `${colors.primary}42`,
+        boxShadow: `0 8px 18px -12px ${colors.primary}56`,
       }}
     >
       {competitor[0]}

@@ -12,10 +12,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#0b1120]">
+      <body className="min-h-screen antialiased">
         <AuthProvider>
           <Nav />
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 pb-16">
+          <main className="max-w-[1680px] mx-auto px-3 sm:px-4 lg:px-5 py-4 pb-12">
             <AuthGuard>
               {children}
             </AuthGuard>

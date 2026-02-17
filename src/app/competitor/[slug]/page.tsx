@@ -2,8 +2,8 @@
 
 import { useState, useEffect, use, useCallback } from 'react';
 import { EventCard } from '@/components/EventCard';
-import { TierBadge, ThreatBar } from '@/components/TierBadge';
-import { CompetitorAvatar, COMPETITOR_COLORS } from '@/components/CompetitorBadge';
+import { TierBadge } from '@/components/TierBadge';
+import { CompetitorAvatar } from '@/components/CompetitorBadge';
 import {
   LoadingRadar, ChevronIcon, TargetIcon, ShieldIcon, ClockIcon,
   ExternalLinkIcon, PlusIcon, EditIcon, TrashIcon, CopyIcon, CheckIcon,
@@ -768,7 +768,7 @@ function ProductsTab({ profile, onRefresh }: { profile: ProfileData; onRefresh: 
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">Features</span>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {prod.features.map((f: Record<string, string> | string, i: number) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-lime-500/10 text-lime-300 border border-lime-500/20">
                         {typeof f === 'string' ? f : (f as Record<string, string>).name || JSON.stringify(f)}
                       </span>
                     ))}
@@ -982,14 +982,14 @@ function BattleCardTab({ profile, onRefresh }: { profile: ProfileData; onRefresh
 function BattleCardSection({ label, content, color }: { label: string; content: string; color: string }) {
   const colorMap: Record<string, { border: string; bg: string; text: string }> = {
     amber: { border: 'border-l-amber-500', bg: 'bg-amber-500/5', text: 'text-amber-400' },
-    blue: { border: 'border-l-blue-500', bg: 'bg-blue-500/5', text: 'text-blue-400' },
+    blue: { border: 'border-l-lime-500', bg: 'bg-lime-500/5', text: 'text-lime-300' },
     emerald: { border: 'border-l-emerald-500', bg: 'bg-emerald-500/5', text: 'text-emerald-400' },
     red: { border: 'border-l-red-500', bg: 'bg-red-500/5', text: 'text-red-400' },
   };
   const c = colorMap[color] || colorMap.amber;
 
   return (
-    <div className={`card-base p-5 ${c.bg}`} style={{ borderLeftWidth: '3px', borderLeftColor: color === 'amber' ? '#f59e0b' : color === 'blue' ? '#3b82f6' : color === 'emerald' ? '#10b981' : '#ef4444', borderLeftStyle: 'solid' }}>
+    <div className={`card-base p-5 ${c.bg}`} style={{ borderLeftWidth: '3px', borderLeftColor: color === 'amber' ? '#d3ba56' : color === 'blue' ? '#9fca79' : color === 'emerald' ? '#86a954' : '#ff5a4f', borderLeftStyle: 'solid' }}>
       <div className="flex items-center justify-between mb-2">
         <h3 className={`text-xs font-semibold uppercase tracking-wider ${c.text}`}>{label}</h3>
         <CopyButton text={`${label}:\n${content}`} />
@@ -1046,7 +1046,7 @@ function ActivityTab({
               className={`
                 text-center p-4 rounded-xl border transition-all duration-200
                 ${filterTier === t.name
-                  ? 'ring-2 ring-offset-2 ring-offset-[#0b1120]'
+                  ? 'ring-2 ring-offset-2 ring-offset-[#090d08]'
                   : 'border-slate-700/40 hover:border-slate-600'
                 }
               `}

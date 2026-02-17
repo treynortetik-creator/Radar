@@ -15,16 +15,16 @@ function formatDateRange(start: string, end: string): string {
 }
 
 const statusStyles: Record<string, { bg: string; text: string }> = {
-  generated: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
+  generated: { bg: 'bg-lime-500/10', text: 'text-lime-300' },
   delivered: { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
   archived: { bg: 'bg-slate-500/10', text: 'text-slate-400' },
 };
 
 const typeStyles: Record<string, { bg: string; text: string }> = {
-  weekly: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
-  monthly: { bg: 'bg-violet-500/10', text: 'text-violet-400' },
-  '90day': { bg: 'bg-teal-500/10', text: 'text-teal-400' },
-  '180day': { bg: 'bg-rose-500/10', text: 'text-rose-400' },
+  weekly: { bg: 'bg-amber-500/10', text: 'text-amber-400' },
+  monthly: { bg: 'bg-lime-500/10', text: 'text-lime-300' },
+  '90day': { bg: 'bg-yellow-500/10', text: 'text-yellow-300' },
+  '180day': { bg: 'bg-orange-500/10', text: 'text-orange-300' },
 };
 
 type FilterType = 'all' | 'weekly' | 'monthly' | '90day' | '180day';

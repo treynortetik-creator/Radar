@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TierBadge, ThreatBar } from './TierBadge';
 import { CompetitorBadge } from './CompetitorBadge';
-import { ExternalLinkIcon, ChevronIcon, ClockIcon, TargetIcon, SignalIcon } from './icons';
+import { ExternalLinkIcon, ChevronIcon, ClockIcon, SignalIcon } from './icons';
 
 interface Event {
   id: number;
@@ -21,15 +21,6 @@ interface Event {
   strategic_relevance: number;
   content_type_weight: number;
 }
-
-const COMPETITOR_COLORS: Record<string, string> = {
-  'Inspiren': '#CC4125',
-  'Sage': '#B4A7D6',
-  'VirtuSense': '#9900FF',
-  'Amba': '#FF9900',
-  'Nobi': '#B7E1CD',
-  'CarePredict': '#F9CB9C',
-};
 
 const cardClasses: Record<string, string> = {
   Critical: 'border-l-critical glow-critical',
@@ -71,15 +62,15 @@ function formatFullDate(dateStr: string): string {
 
 // Theme badge styling
 const themeColors: Record<string, { bg: string; text: string; border: string }> = {
-  'Product/Feature': { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20' },
+  'Product/Feature': { bg: 'bg-lime-500/10', text: 'text-lime-300', border: 'border-lime-500/20' },
   'Customer Win': { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
-  'Partnership/Integration': { bg: 'bg-violet-500/10', text: 'text-violet-400', border: 'border-violet-500/20' },
+  'Partnership/Integration': { bg: 'bg-green-500/10', text: 'text-green-300', border: 'border-green-500/20' },
   'Funding/Corporate': { bg: 'bg-amber-500/10', text: 'text-amber-400', border: 'border-amber-500/20' },
   'Competitive Attack': { bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
   'Pricing/Packaging': { bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/20' },
-  'Event/Conference': { bg: 'bg-cyan-500/10', text: 'text-cyan-400', border: 'border-cyan-500/20' },
-  'Thought Leadership': { bg: 'bg-indigo-500/10', text: 'text-indigo-400', border: 'border-indigo-500/20' },
-  'Job Posting': { bg: 'bg-slate-500/10', text: 'text-slate-400', border: 'border-slate-500/20' },
+  'Event/Conference': { bg: 'bg-yellow-500/10', text: 'text-yellow-300', border: 'border-yellow-500/20' },
+  'Thought Leadership': { bg: 'bg-emerald-500/10', text: 'text-emerald-300', border: 'border-emerald-500/20' },
+  'Job Posting': { bg: 'bg-zinc-500/10', text: 'text-zinc-300', border: 'border-zinc-500/20' },
 };
 
 function ThemeBadge({ theme }: { theme: string }) {
@@ -93,7 +84,6 @@ function ThemeBadge({ theme }: { theme: string }) {
 
 export function EventCard({ event }: { event: Event }) {
   const [expanded, setExpanded] = useState(false);
-  const accentColor = COMPETITOR_COLORS[event.competitor] || '#94a3b8';
 
   return (
     <div 
@@ -119,7 +109,7 @@ export function EventCard({ event }: { event: Event }) {
         </div>
         
         {/* Title */}
-        <h3 className="text-[15px] font-semibold text-slate-100 leading-snug mb-2 line-clamp-2 group-hover:text-white transition-colors">
+        <h3 className="text-[15px] font-semibold text-slate-100 leading-snug mb-2 line-clamp-2 group-hover:text-[#f0e9b6] transition-colors">
           {event.title}
         </h3>
         

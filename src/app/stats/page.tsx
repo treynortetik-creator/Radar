@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { LoadingRadar, AnalyticsIcon, TargetIcon, ShieldIcon, SignalIcon } from '@/components/icons';
 
 const COMPETITOR_COLORS: Record<string, string> = {
@@ -14,10 +14,10 @@ const COMPETITOR_COLORS: Record<string, string> = {
 };
 
 const TIER_COLORS: Record<string, string> = {
-  'Critical': '#ef4444',
-  'High': '#f97316',
-  'Medium': '#eab308',
-  'Low': '#22c55e',
+  'Critical': '#ff5a4f',
+  'High': '#da9a47',
+  'Medium': '#d3ba56',
+  'Low': '#86a954',
 };
 
 const TIER_ORDER = ['Critical', 'High', 'Medium', 'Low'];
@@ -56,7 +56,7 @@ function ChartCard({
 function MiniStatCard({ 
   label, 
   value, 
-  color = '#f59e0b',
+  color = '#dbc55e',
   icon: Icon,
 }: { 
   label: string; 
@@ -86,7 +86,7 @@ function MiniStatCard({
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800/95 backdrop-blur border border-slate-700/50 rounded-lg px-3 py-2 shadow-xl">
+    <div className="bg-[#10170e]/95 backdrop-blur border border-[#3c4b28] rounded-lg px-3 py-2 shadow-xl">
       <p className="text-xs text-slate-400 mb-1.5 font-medium">{label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-sm font-semibold flex items-center gap-2" style={{ color: entry.color || entry.fill }}>
@@ -132,8 +132,8 @@ export default function StatsPage() {
     <div className="space-y-8">
       {/* Page Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 flex items-center justify-center">
-          <AnalyticsIcon className="w-5 h-5 text-indigo-400" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-lime-500/20 border border-amber-500/30 flex items-center justify-center">
+          <AnalyticsIcon className="w-5 h-5 text-amber-400" />
         </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-100 tracking-tight">Analytics</h1>
@@ -143,13 +143,13 @@ export default function StatsPage() {
       
       {/* Summary Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <MiniStatCard label="Total Events" value={stats.totalEvents} color="#6366f1" icon={TargetIcon} />
-        <MiniStatCard label="High+ Threats" value={criticalHigh} color="#ef4444" icon={ShieldIcon} />
-        <MiniStatCard label="Threat Rate" value={`${threatRate}%`} color="#f97316" icon={SignalIcon} />
+        <MiniStatCard label="Total Events" value={stats.totalEvents} color="#dbc55e" icon={TargetIcon} />
+        <MiniStatCard label="High+ Threats" value={criticalHigh} color="#ff5a4f" icon={ShieldIcon} />
+        <MiniStatCard label="Threat Rate" value={`${threatRate}%`} color="#da9a47" icon={SignalIcon} />
         <MiniStatCard 
           label="Top Competitor" 
           value={topCompetitor?.competitor || '—'} 
-          color={COMPETITOR_COLORS[topCompetitor?.competitor] || '#94a3b8'} 
+          color={COMPETITOR_COLORS[topCompetitor?.competitor] || '#86a954'} 
         />
       </div>
 
@@ -159,10 +159,10 @@ export default function StatsPage() {
         <ChartCard title="Events by Competitor" subtitle="Total tracked events per competitor">
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={stats.competitorActivity} layout="vertical" margin={{ left: 10, right: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-              <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="competitor" type="category" width={90} tick={{ fill: '#94a3b8', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#2d3a21" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#718055', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="competitor" type="category" width={90} tick={{ fill: '#aeb786', fontSize: 12 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(219, 197, 94, 0.08)' }} />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={28}>
                 {stats.competitorActivity.map((entry) => (
                   <Cell key={entry.competitor} fill={COMPETITOR_COLORS[entry.competitor] || '#64748b'} />
@@ -186,7 +186,7 @@ export default function StatsPage() {
                   innerRadius={55}
                   outerRadius={95}
                   strokeWidth={3}
-                  stroke="#0b1120"
+                  stroke="#090d08"
                 >
                   {sortedTiers.map((entry) => (
                     <Cell key={entry.priority_tier} fill={TIER_COLORS[entry.priority_tier] || '#64748b'} />
@@ -236,13 +236,13 @@ export default function StatsPage() {
         <ChartCard title="Events by Theme" subtitle="Intelligence categorization">
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={stats.themeDistribution} layout="vertical" margin={{ left: 20, right: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-              <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="theme" type="category" width={140} tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#2d3a21" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#718055', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="theme" type="category" width={140} tick={{ fill: '#aeb786', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(219, 197, 94, 0.08)' }} />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={22}>
                 {stats.themeDistribution.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${220 + i * 20}, 70%, 55%)`} />
+                  <Cell key={i} fill={`hsl(${54 + i * 6}, 48%, ${56 - (i % 3) * 6}%)`} />
                 ))}
               </Bar>
             </BarChart>
@@ -253,13 +253,13 @@ export default function StatsPage() {
         <ChartCard title="Intelligence Routing" subtitle="Distribution by action required">
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={stats.routeDistribution} layout="vertical" margin={{ left: 20, right: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" horizontal={false} />
-              <XAxis type="number" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis dataKey="route_to" type="category" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(148, 163, 184, 0.05)' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#2d3a21" horizontal={false} />
+              <XAxis type="number" tick={{ fill: '#718055', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis dataKey="route_to" type="category" width={130} tick={{ fill: '#aeb786', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(219, 197, 94, 0.08)' }} />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={22}>
                 {stats.routeDistribution.map((_, i) => (
-                  <Cell key={i} fill={`hsl(${260 + i * 25}, 55%, 50%)`} />
+                  <Cell key={i} fill={`hsl(${18 + i * 11}, 58%, ${56 - (i % 3) * 5}%)`} />
                 ))}
               </Bar>
             </BarChart>
