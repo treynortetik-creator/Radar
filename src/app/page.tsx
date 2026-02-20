@@ -207,7 +207,8 @@ export default function Dashboard() {
             placeholder="Search intel..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input-base pl-10"
+            className="input-base"
+            style={{ paddingLeft: '2.5rem' }}
           />
         </div>
         
