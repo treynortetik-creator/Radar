@@ -57,7 +57,7 @@ function renderMarkdown(md: string): string {
     .replace(/\*(.+?)\*/g, '<em class="italic text-slate-300">$1</em>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-amber-400 hover:text-amber-300 underline underline-offset-2">$1</a>')
     .replace(/^---$/gm, '<hr class="border-slate-800 my-8" />')
-    .replace(/^[\-*] (.+)$/gm, '<li class="ml-4 pl-2 text-slate-300 before:content-[\'•\'] before:text-amber-500 before:mr-2">$1</li>')
+    .replace(/^[\-*] (.+)$/gm, '<li class="ml-4 pl-2 text-slate-300 before:content-[\'â€¢\'] before:text-amber-500 before:mr-2">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 pl-2 text-slate-300 list-decimal">$1</li>')
     .replace(/\n\n/g, '</p><p class="text-slate-400 leading-relaxed mb-4">')
     .replace(/\n/g, '<br />');
