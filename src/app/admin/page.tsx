@@ -2,17 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  LoadingRadar, 
-  GearIcon, 
-  PlayIcon, 
-  PlusIcon, 
-  TrashIcon, 
+import {
+  LoadingRadar,
+  GearIcon,
+  PlayIcon,
+  PlusIcon,
+  TrashIcon,
   EditIcon,
   ShieldIcon,
   SignalIcon,
   ClockIcon,
   DocumentIcon,
+  TargetIcon,
+  GlobeIcon,
 } from '@/components/icons';
 import type { DigestConfig, WeeklyDigest } from '@/lib/db';
 import { CollapsibleSection } from '@/components/CollapsibleSection';
@@ -42,12 +44,41 @@ interface OpenRouterModel {
 
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+const DEFAULT_INDUSTRY_PROMPT = `You are an industry intelligence analyst for SafelyYou, a leader in AI-powered fall detection and senior living technology. Use the company context provided to understand SafelyYou's market position and strategic priorities.
+
+Analyze this industry news item and return a JSON assessment focused on how it impacts SafelyYou's market, opportunities, and strategic positioning.
+
+Scoring criteria:
+- threat_level: Market impact level (1=routine industry news, 2=notable shift affecting senior living/AI space, 3=major regulatory, market, or technology change directly impacting SafelyYou's market)
+- strategic_relevance: Relevance to SafelyYou's strategy and growth (1=tangential to senior care, 2=relevant to senior living tech market, 3=directly impacts SafelyYou's positioning or opportunities)
+- content_type_weight: Significance of the content (1=routine coverage, 2=notable development, 3=major industry event/regulation/trend)
+
+Item details:
+- Title: {title}
+- Summary: {summary}
+- Date: {date}
+
+Return ONLY valid JSON:
+{
+  "theme": "Regulation/Policy|Market Trend|Technology/Innovation|M&A/Partnership|Workforce/Staffing|Resident Safety|Funding/Investment|Research/Data|Industry Event|Thought Leadership",
+  "threat_level": 1-3,
+  "strategic_relevance": 1-3,
+  "content_type_weight": 1-3,
+  "priority_score": 1.0-3.0,
+  "priority_tier": "Low|Medium|High|Critical",
+  "route_to": "Marketing|Product|Sales Enablement|Leadership|Monitor Only",
+  "key_takeaway": "1-2 sentence insight about what this means for SafelyYou",
+  "auto_flag_triggers": "comma-separated triggers or empty string"
+}
+
+auto_flag_triggers should flag: mentions of SafelyYou, regulatory changes affecting AI in senior living, major competitor mentions in industry press, CMS/Medicare policy changes, and technology standards affecting fall detection or senior care AI.`;
+
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ingesting, setIngesting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'settings' | 'digest'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'competitor' | 'industry' | 'digest'>('settings');
 
   // Config state
   const [model, setModel] = useState('google/gemini-2.0-flash-001');
@@ -90,6 +121,12 @@ export default function AdminPage() {
   const [slackStatus, setSlackStatus] = useState<{ configured: boolean; token_set: boolean; channel_set: boolean } | null>(null);
   const [slackTesting, setSlackTesting] = useState(false);
 
+  // Industry news state
+  const [industryModel, setIndustryModel] = useState('google/gemini-2.0-flash-001');
+  const [industrySystemPrompt, setIndustrySystemPrompt] = useState('');
+  const [industryModelSearch, setIndustryModelSearch] = useState('');
+  const [industrySaving, setIndustrySaving] = useState(false);
+
   useEffect(() => {
     loadConfig();
     loadFeeds();
@@ -116,6 +153,8 @@ export default function AdminPage() {
       if (data.system_prompt) setSystemPrompt(data.system_prompt);
       if (data.master_context) setMasterContext(data.master_context);
       if (data.last_ingest) setLastIngest(data.last_ingest);
+      if (data.industry_model) setIndustryModel(data.industry_model);
+      setIndustrySystemPrompt(data.industry_system_prompt || DEFAULT_INDUSTRY_PROMPT);
     } catch (err) {
       console.error('Failed to load config:', err);
     } finally {
@@ -127,9 +166,14 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/feeds');
       const data = await res.json();
+      if (!res.ok) {
+        console.error('Feeds API error:', data.error);
+        setMessage({ type: 'error', text: `Failed to load feeds: ${data.error || 'Unknown error'}` });
+      }
       setFeeds(data.feeds || []);
     } catch (err) {
       console.error('Failed to load feeds:', err);
+      setMessage({ type: 'error', text: 'Failed to load feeds from server' });
     }
   };
 
@@ -221,21 +265,57 @@ export default function AdminPage() {
     }
   };
 
-  const saveConfig = async () => {
+  const saveMasterContext = async () => {
     setSaving(true);
     setMessage(null);
     try {
       const res = await fetch('/api/admin/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, system_prompt: systemPrompt, master_context: masterContext }),
+        body: JSON.stringify({ master_context: masterContext }),
       });
       if (!res.ok) throw new Error('Failed to save');
-      setMessage({ type: 'success', text: 'Configuration saved successfully' });
+      setMessage({ type: 'success', text: 'Master context saved' });
     } catch {
-      setMessage({ type: 'error', text: 'Failed to save configuration' });
+      setMessage({ type: 'error', text: 'Failed to save master context' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveCompetitorConfig = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, system_prompt: systemPrompt }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setMessage({ type: 'success', text: 'Competitor configuration saved' });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to save competitor configuration' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveIndustryConfig = async () => {
+    setIndustrySaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ industry_model: industryModel, industry_system_prompt: industrySystemPrompt }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setMessage({ type: 'success', text: 'Industry news configuration saved' });
+    } catch {
+      setMessage({ type: 'error', text: 'Failed to save industry configuration' });
+    } finally {
+      setIndustrySaving(false);
     }
   };
 
@@ -426,28 +506,25 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 bg-slate-900/60 border border-slate-700/40 rounded-xl p-1">
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-              activeTab === 'settings'
-                ? 'bg-slate-800 text-amber-400 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <GearIcon className="w-4 h-4" />
-            Settings
-          </button>
-          <button
-            onClick={() => setActiveTab('digest')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-              activeTab === 'digest'
-                ? 'bg-slate-800 text-amber-400 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-            }`}
-          >
-            <DocumentIcon className="w-4 h-4" />
-            Digests
-          </button>
+          {([
+            { key: 'settings', label: 'Settings', icon: <GearIcon className="w-4 h-4" /> },
+            { key: 'competitor', label: 'Competitor Intel', icon: <TargetIcon className="w-4 h-4" /> },
+            { key: 'industry', label: 'Industry News', icon: <GlobeIcon className="w-4 h-4" /> },
+            { key: 'digest', label: 'Digests', icon: <DocumentIcon className="w-4 h-4" /> },
+          ] as const).map(({ key, label, icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                activeTab === key
+                  ? 'bg-slate-800 text-amber-400 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+              }`}
+            >
+              {icon}
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -509,92 +586,6 @@ export default function AdminPage() {
             </div>
           </CollapsibleSection>
 
-          {/* Model Selection */}
-          <CollapsibleSection
-            title="AI Model Selection"
-            subtitle="Model used for RSS feed scoring"
-            storageKey="settings-model"
-            defaultOpen={false}
-            headerRight={model ? (
-              <code className="text-xs bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{model.split('/').pop()}</code>
-            ) : undefined}
-          >
-            <div className="space-y-3">
-              <input
-                type="text"
-                value={modelSearch}
-                onChange={(e) => setModelSearch(e.target.value)}
-                placeholder="Search models..."
-                className="input-base"
-              />
-              <select
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="input-base"
-                size={8}
-              >
-                {availableModels
-                  .filter(m =>
-                    m.name.toLowerCase().includes(modelSearch.toLowerCase()) ||
-                    m.id.toLowerCase().includes(modelSearch.toLowerCase())
-                  )
-                  .map(m => {
-                    const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
-                    const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
-                    const costStr = promptCost === 0 && completionCost === 0
-                      ? 'Free'
-                      : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
-                    return (
-                      <option key={m.id} value={m.id}>
-                        {m.name} — {costStr} — {(m.context_length / 1000).toFixed(0)}k ctx
-                      </option>
-                    );
-                  })}
-              </select>
-              {model && (
-                <div className="text-xs text-slate-400">
-                  Selected: <code className="bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{model}</code>
-                </div>
-              )}
-            </div>
-          </CollapsibleSection>
-
-          {/* System Prompt */}
-          <CollapsibleSection
-            title="System Prompt"
-            subtitle={`Placeholders: {competitor}, {title}, {summary}, {date}, {is_job}`}
-            storageKey="settings-prompt"
-            defaultOpen={false}
-            headerRight={<span className="text-xs text-slate-500 font-mono">{systemPrompt.length.toLocaleString()} chars</span>}
-          >
-            <textarea
-              value={systemPrompt}
-              onChange={(e) => setSystemPrompt(e.target.value)}
-              rows={16}
-              className="input-base font-mono text-sm resize-y min-h-[200px]"
-              placeholder="Enter system prompt..."
-            />
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={saveConfig}
-                disabled={saving}
-                className="btn-primary flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <ShieldIcon variant="secure" className="w-4 h-4" />
-                    Save Configuration
-                  </>
-                )}
-              </button>
-            </div>
-          </CollapsibleSection>
-
           {/* Master Context */}
           <CollapsibleSection
             title="Master Context"
@@ -625,6 +616,25 @@ export default function AdminPage() {
               className="input-base font-mono text-sm resize-y min-h-[150px]"
               placeholder="Paste SafelyYou Master Context here..."
             />
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={saveMasterContext}
+                disabled={saving}
+                className="btn-primary flex items-center gap-2"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <ShieldIcon variant="secure" className="w-4 h-4" />
+                    Save Master Context
+                  </>
+                )}
+              </button>
+            </div>
           </CollapsibleSection>
 
           {/* Feeds Management */}
@@ -811,6 +821,209 @@ export default function AdminPage() {
               )}
             </div>
           </CollapsibleSection>
+        </>
+      )}
+
+      {/* =================== COMPETITOR INTEL TAB =================== */}
+      {activeTab === 'competitor' && (
+        <>
+          {/* AI Model Selection */}
+          <CollapsibleSection
+            title="AI Model Selection"
+            subtitle="Model used for scoring competitor RSS feed items"
+            storageKey="competitor-model"
+            defaultOpen={false}
+            headerRight={model ? (
+              <code className="text-xs bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{model.split('/').pop()}</code>
+            ) : undefined}
+          >
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={modelSearch}
+                onChange={(e) => setModelSearch(e.target.value)}
+                placeholder="Search models..."
+                className="input-base"
+              />
+              <select
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="input-base"
+                size={8}
+              >
+                {availableModels
+                  .filter(m =>
+                    m.name.toLowerCase().includes(modelSearch.toLowerCase()) ||
+                    m.id.toLowerCase().includes(modelSearch.toLowerCase())
+                  )
+                  .map(m => {
+                    const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
+                    const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
+                    const costStr = promptCost === 0 && completionCost === 0
+                      ? 'Free'
+                      : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.name} — {costStr} — {(m.context_length / 1000).toFixed(0)}k ctx
+                      </option>
+                    );
+                  })}
+              </select>
+              {model && (
+                <div className="text-xs text-slate-400">
+                  Selected: <code className="bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{model}</code>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* System Prompt */}
+          <CollapsibleSection
+            title="System Prompt"
+            subtitle="Placeholders: {competitor}, {title}, {summary}, {date}, {is_job}"
+            storageKey="competitor-prompt"
+            defaultOpen={true}
+            headerRight={<span className="text-xs text-slate-500 font-mono">{systemPrompt.length.toLocaleString()} chars</span>}
+          >
+            <textarea
+              value={systemPrompt}
+              onChange={(e) => setSystemPrompt(e.target.value)}
+              rows={16}
+              className="input-base font-mono text-sm resize-y min-h-[200px]"
+              placeholder="Enter competitor scoring prompt..."
+            />
+          </CollapsibleSection>
+
+          {/* Save button */}
+          <div className="flex justify-end">
+            <button
+              onClick={saveCompetitorConfig}
+              disabled={saving}
+              className="btn-primary flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <ShieldIcon variant="secure" className="w-4 h-4" />
+                  Save Competitor Configuration
+                </>
+              )}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* =================== INDUSTRY NEWS TAB =================== */}
+      {activeTab === 'industry' && (
+        <>
+          {/* AI Model Selection */}
+          <CollapsibleSection
+            title="AI Model Selection"
+            subtitle="Model used for scoring industry news items"
+            storageKey="industry-model"
+            defaultOpen={false}
+            headerRight={industryModel ? (
+              <code className="text-xs bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{industryModel.split('/').pop()}</code>
+            ) : undefined}
+          >
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={industryModelSearch}
+                onChange={(e) => setIndustryModelSearch(e.target.value)}
+                placeholder="Search models..."
+                className="input-base"
+              />
+              <select
+                value={industryModel}
+                onChange={(e) => setIndustryModel(e.target.value)}
+                className="input-base"
+                size={8}
+              >
+                {availableModels
+                  .filter(m =>
+                    m.name.toLowerCase().includes(industryModelSearch.toLowerCase()) ||
+                    m.id.toLowerCase().includes(industryModelSearch.toLowerCase())
+                  )
+                  .map(m => {
+                    const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
+                    const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
+                    const costStr = promptCost === 0 && completionCost === 0
+                      ? 'Free'
+                      : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.name} — {costStr} — {(m.context_length / 1000).toFixed(0)}k ctx
+                      </option>
+                    );
+                  })}
+              </select>
+              {industryModel && (
+                <div className="text-xs text-slate-400">
+                  Selected: <code className="bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{industryModel}</code>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* System Prompt */}
+          <CollapsibleSection
+            title="System Prompt"
+            subtitle="Placeholders: {title}, {summary}, {date}"
+            storageKey="industry-prompt"
+            defaultOpen={true}
+            headerRight={<span className="text-xs text-slate-500 font-mono">{industrySystemPrompt.length.toLocaleString()} chars</span>}
+          >
+            <textarea
+              value={industrySystemPrompt}
+              onChange={(e) => setIndustrySystemPrompt(e.target.value)}
+              rows={16}
+              className="input-base font-mono text-sm resize-y min-h-[200px]"
+              placeholder="Enter industry news scoring prompt..."
+            />
+          </CollapsibleSection>
+
+          {/* Save button */}
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={async () => {
+                setMessage(null);
+                try {
+                  const res = await fetch('/api/ingest/rescore', { method: 'POST' });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || 'Rescore failed');
+                  setMessage({ type: 'success', text: `Re-scored ${data.rescored} of ${data.total_found} industry items` });
+                } catch (err) {
+                  setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Rescore failed' });
+                }
+              }}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <PlayIcon className="w-4 h-4" />
+              Re-score Unscored Items
+            </button>
+            <button
+              onClick={saveIndustryConfig}
+              disabled={industrySaving}
+              className="btn-primary flex items-center gap-2"
+            >
+              {industrySaving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <ShieldIcon variant="secure" className="w-4 h-4" />
+                  Save Industry Configuration
+                </>
+              )}
+            </button>
+          </div>
         </>
       )}
 

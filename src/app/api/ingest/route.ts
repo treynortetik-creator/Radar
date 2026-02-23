@@ -12,7 +12,7 @@ interface FeedItem {
   feed_name: string;
   is_job_board: boolean;
   url_hash: string;
-  /** 'competitor' (default) or 'industry_news' — industry items skip AI scoring */
+  /** 'competitor' (default) or 'industry_news' — industry items use separate prompt/model */
   category: string;
 }
 
@@ -107,7 +107,8 @@ async function scoreItem(
   item: FeedItem,
   systemPrompt: string,
   model: string,
-  apiKey: string
+  apiKey: string,
+  masterContext?: string
 ): Promise<AIScores> {
   const defaultScores: AIScores = {
     theme: item.is_job_board ? 'Job Posting' : 'Thought Leadership',
@@ -127,12 +128,16 @@ async function scoreItem(
   }
 
   try {
-    const prompt = systemPrompt
-      .replace('{competitor}', item.competitor_name)
-      .replace('{title}', item.title)
-      .replace('{summary}', item.summary.slice(0, 1500))
-      .replace('{date}', item.date)
-      .replace('{is_job}', item.is_job_board ? 'Yes' : 'No');
+    let prompt = systemPrompt
+      .replace(/\{competitor\}/g, item.competitor_name || 'N/A')
+      .replace(/\{title\}/g, item.title)
+      .replace(/\{summary\}/g, item.summary.slice(0, 1500))
+      .replace(/\{date\}/g, item.date)
+      .replace(/\{is_job\}/g, item.is_job_board ? 'Yes' : 'No');
+
+    if (masterContext) {
+      prompt = `## Company Context\n${masterContext}\n\n## Item to Analyze\n${prompt}`;
+    }
 
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -189,9 +194,14 @@ async function scoreItem(
 
     // Validate theme
     const validThemes = [
+      // Competitor themes
       'Product/Feature', 'Customer Win', 'Partnership/Integration',
       'Funding/Corporate', 'Competitive Attack', 'Pricing/Packaging',
-      'Event/Conference', 'Thought Leadership', 'Job Posting'
+      'Event/Conference', 'Thought Leadership', 'Job Posting',
+      // Industry themes
+      'Regulation/Policy', 'Market Trend', 'Technology/Innovation',
+      'M&A/Partnership', 'Workforce/Staffing', 'Resident Safety',
+      'Funding/Investment', 'Research/Data', 'Industry Event',
     ];
     const theme = validThemes.includes(scores.theme) ? scores.theme : 'Thought Leadership';
 
@@ -229,6 +239,9 @@ export async function POST() {
     const model = config.openrouter_model || 'google/gemini-2.0-flash-001';
     const systemPrompt = config.system_prompt || '';
     const apiKey = process.env.OPENROUTER_API_KEY || '';
+    const industryModel = config.industry_openrouter_model || model; // fallback to competitor model
+    const industryPrompt = config.industry_system_prompt || '';
+    const masterContext = config.master_context || '';
 
     if (!systemPrompt) {
       return NextResponse.json({ error: 'No system prompt configured' }, { status: 400 });
@@ -333,24 +346,34 @@ export async function POST() {
     for (const item of newItems) {
       const isIndustryNews = item.category === 'industry_news';
 
-      // Industry news items skip AI scoring — ingest with low defaults
+      // Score item — industry news uses its own prompt/model if configured
       let scores: AIScores;
       if (isIndustryNews) {
-        console.log(`Industry news (no scoring): ${item.title.slice(0, 50)}...`);
-        scores = {
-          theme: 'Thought Leadership',
-          threat_level: 1,
-          strategic_relevance: 1,
-          content_type_weight: 1,
-          priority_score: 1.0,
-          priority_tier: 'Low',
-          route_to: 'Monitor Only',
-          key_takeaway: `Industry news: ${item.title.slice(0, 200)}`,
-          auto_flag_triggers: '',
-        };
+        if (industryPrompt) {
+          console.log(`Scoring industry: ${item.title.slice(0, 50)}...`);
+          scores = await scoreItem(item, industryPrompt, industryModel, apiKey, masterContext);
+          // Rate limit
+          await new Promise(resolve => setTimeout(resolve, 300));
+        } else {
+          // No industry prompt configured — use defaults
+          console.log(`Industry news (no prompt configured): ${item.title.slice(0, 50)}...`);
+          scores = {
+            theme: 'Thought Leadership',
+            threat_level: 1,
+            strategic_relevance: 1,
+            content_type_weight: 1,
+            priority_score: 1.0,
+            priority_tier: 'Low',
+            route_to: 'Monitor Only',
+            key_takeaway: `Industry news: ${item.title.slice(0, 200)}`,
+            auto_flag_triggers: '',
+          };
+        }
       } else {
         console.log(`Scoring: ${item.title.slice(0, 50)}...`);
-        scores = await scoreItem(item, systemPrompt, model, apiKey);
+        scores = await scoreItem(item, systemPrompt, model, apiKey, masterContext);
+        // Rate limit
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       // Insert into database
@@ -385,10 +408,6 @@ export async function POST() {
         if (tier in results) results[tier]++;
       }
 
-      // Rate limit — only needed when we called the AI API
-      if (!isIndustryNews) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-      }
     }
 
     // Update last_ingest time

@@ -19,6 +19,8 @@ export async function GET() {
       system_prompt: config.system_prompt || '',
       master_context: config.master_context || '',
       last_ingest: config.last_ingest || null,
+      industry_model: config.industry_openrouter_model || 'google/gemini-2.0-flash-001',
+      industry_system_prompt: config.industry_system_prompt || '',
     });
   } catch (error) {
     console.error('Error fetching config:', error);
@@ -53,6 +55,22 @@ export async function POST(request: Request) {
         .from('admin_config')
         .upsert({ key: 'master_context', value: body.master_context, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (contextError) throw contextError;
+    }
+
+    // Update industry model
+    if (body.industry_model !== undefined) {
+      const { error: industryModelError } = await supabaseAdmin
+        .from('admin_config')
+        .upsert({ key: 'industry_openrouter_model', value: body.industry_model, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (industryModelError) throw industryModelError;
+    }
+
+    // Update industry system prompt
+    if (body.industry_system_prompt !== undefined) {
+      const { error: industryPromptError } = await supabaseAdmin
+        .from('admin_config')
+        .upsert({ key: 'industry_system_prompt', value: body.industry_system_prompt, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      if (industryPromptError) throw industryPromptError;
     }
 
     return NextResponse.json({ success: true });
