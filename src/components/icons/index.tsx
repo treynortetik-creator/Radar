@@ -148,6 +148,17 @@ export function AnalyticsIcon({ className = "w-5 h-5" }: { className?: string })
   );
 }
 
+export function GlobeIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 12H21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12 3C9.5 5.7 8 8.8 8 12C8 15.2 9.5 18.3 12 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12 3C14.5 5.7 16 8.8 16 12C16 15.2 14.5 18.3 12 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function GearIcon({ className = "w-5 h-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>

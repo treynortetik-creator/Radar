@@ -8,7 +8,8 @@ export async function POST(request: NextRequest) {
     const validTypes: DigestType[] = ['weekly', 'monthly', '90day', '180day'];
     const digestType: DigestType = validTypes.includes(body.type) ? body.type : 'weekly';
 
-    const result = await generateDigest(digestType);
+    // The new generateDigest uses configOverride; digest type selection is not yet wired
+    const result = await generateDigest();
 
     return NextResponse.json({
       success: true,

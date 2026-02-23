@@ -27,6 +27,10 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['better-sqlite3'],
+  turbopack: {
+    root: __dirname,
+  },
   async headers() {
     return [
       {

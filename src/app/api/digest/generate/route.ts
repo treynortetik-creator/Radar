@@ -1,35 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { generateDigest, extractSummary } from '@/lib/digest';
-import type { DigestType } from '@/lib/digest';
+import { generateDigest } from '@/lib/digest';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const body = await request.json().catch(() => ({}));
-    const validTypes: DigestType[] = ['weekly', 'monthly', '90day', '180day'];
-    const digestType: DigestType = validTypes.includes(body.type) ? body.type : 'weekly';
-    const periodDaysMap: Record<DigestType, number> = { weekly: 7, monthly: 30, '90day': 90, '180day': 180 };
-    const periodDays = periodDaysMap[digestType];
-
-    const result = await generateDigest(digestType);
+    const result = await generateDigest();
 
     const now = new Date();
-    const periodStart = new Date(now);
-    periodStart.setDate(periodStart.getDate() - periodDays);
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // Store the digest
     const { data, error } = await supabaseAdmin
       .from('weekly_digests')
       .insert({
-        week_start: periodStart.toISOString().split('T')[0],
+        week_start: sevenDaysAgo.toISOString().split('T')[0],
         week_end: now.toISOString().split('T')[0],
         content: result.content,
-        summary: extractSummary(result.content),
+        summary: result.summary,
         event_count: result.event_count,
+        industry_news_count: result.industry_news_count,
         competitor_breakdown: result.competitor_breakdown,
+        industry_breakdown: result.industry_breakdown,
         model_used: result.model_used,
         tokens_used: result.tokens_used,
-        digest_type: digestType,
+        slack_posted: result.slack_posted,
+        slack_ts: result.slack_ts,
+        slack_error: result.slack_error,
         status: 'generated',
       })
       .select()

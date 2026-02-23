@@ -133,15 +133,38 @@ export interface WeeklyDigest {
   content: string;
   summary: string | null;
   event_count: number | null;
+  industry_news_count: number | null;
   competitor_breakdown: Record<string, number> | null;
+  industry_breakdown: Record<string, number> | null;
   model_used: string | null;
   prompt_version: number | null;
   tokens_used: number | null;
   cost_estimate: number | null;
+  slack_posted: boolean | null;
+  slack_ts: string | null;
+  slack_error: string | null;
   status: string;
   delivered_at: string | null;
   created_at: string;
-  digest_type: 'weekly' | 'monthly' | '90day' | '180day';
+}
+
+export interface IndustryNews {
+  id: number;
+  url_hash: string;
+  title: string;
+  url: string;
+  summary: string | null;
+  published_at: string | null;
+  source_name: string;
+  feed_url: string | null;
+  relevance_tier: 'Major' | 'Notable' | 'Background' | null;
+  relevance_summary: string | null;
+  topics: string[] | null;
+  mentioned_accounts: string[] | null;
+  is_read: boolean;
+  is_actioned: boolean;
+  notes: string | null;
+  created_at: string;
 }
 
 export interface DigestConfig {
@@ -150,11 +173,8 @@ export interface DigestConfig {
   focus_areas: string[] | null;
   output_format: string;
   delivery_day: number;
-  delivery_day_of_month: number | null;
   delivery_hour: number;
   model: string;
   is_active: boolean;
   updated_at: string;
-  digest_type: 'weekly' | 'monthly' | '90day' | '180day';
-  reasoning_effort: 'off' | 'low' | 'medium' | 'high';
 }

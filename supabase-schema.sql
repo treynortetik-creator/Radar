@@ -91,6 +91,37 @@ CREATE TABLE competitor_events (
 );
 
 -- ============================================
+-- INDUSTRY NEWS TABLE (PIPELINE B)
+-- ============================================
+
+CREATE TABLE industry_news (
+    id SERIAL PRIMARY KEY,
+
+    -- Core fields (from RSS)
+    url_hash TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT UNIQUE NOT NULL,
+    summary TEXT,
+    published_at TIMESTAMPTZ,
+    source_name TEXT NOT NULL,
+    feed_url TEXT,
+
+    -- AI-scored fields
+    relevance_tier TEXT CHECK(relevance_tier IN ('Major', 'Notable', 'Background')),
+    relevance_summary TEXT,
+    topics TEXT[],
+    mentioned_accounts TEXT[],
+
+    -- User interaction
+    is_read BOOLEAN DEFAULT FALSE,
+    is_actioned BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
 -- INDEXES
 -- ============================================
 
@@ -103,6 +134,10 @@ CREATE INDEX idx_events_category ON competitor_events(category);
 CREATE INDEX idx_events_theme ON competitor_events(theme);
 CREATE INDEX idx_events_unread ON competitor_events(is_read) WHERE is_read = FALSE;
 CREATE INDEX idx_events_unsynced ON competitor_events(synced_to_sheet) WHERE synced_to_sheet = FALSE;
+CREATE INDEX idx_industry_tier ON industry_news(relevance_tier);
+CREATE INDEX idx_industry_published ON industry_news(published_at DESC);
+CREATE INDEX idx_industry_source ON industry_news(source_name);
+CREATE INDEX idx_industry_unread ON industry_news(is_read) WHERE is_read = FALSE;
 
 CREATE INDEX idx_feeds_competitor ON feeds(competitor_id);
 
@@ -113,11 +148,14 @@ CREATE INDEX idx_feeds_competitor ON feeds(competitor_id);
 ALTER TABLE competitor_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE competitors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feeds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE industry_news ENABLE ROW LEVEL SECURITY;
 
 -- Allow anonymous read access (for the dashboard)
 CREATE POLICY "Allow anonymous read" ON competitor_events FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous read" ON competitors FOR SELECT USING (true);
 CREATE POLICY "Allow anonymous read" ON feeds FOR SELECT USING (true);
+CREATE POLICY "Allow anonymous read" ON industry_news FOR SELECT USING (true);
+CREATE POLICY "Allow service write" ON industry_news FOR ALL USING (true);
 
 -- Write access: service_role key (used by API routes) bypasses RLS.
 -- No explicit write policy needed — only service_role should write.
@@ -166,11 +204,16 @@ CREATE TABLE weekly_digests (
     content TEXT NOT NULL,
     summary TEXT,
     event_count INTEGER,
+    industry_news_count INTEGER DEFAULT 0,
     competitor_breakdown JSONB,
+    industry_breakdown JSONB,
     model_used TEXT,
     prompt_version INTEGER,
     tokens_used INTEGER,
     cost_estimate DECIMAL(8,4),
+    slack_posted BOOLEAN DEFAULT FALSE,
+    slack_ts TEXT,
+    slack_error TEXT,
     status TEXT DEFAULT 'generated',
     delivered_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
