@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateDigest } from '@/lib/digest';
-import type { DigestType } from '@/lib/digest';
+import type { DigestType } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,8 +8,7 @@ export async function POST(request: NextRequest) {
     const validTypes: DigestType[] = ['weekly', 'monthly', '90day', '180day'];
     const digestType: DigestType = validTypes.includes(body.type) ? body.type : 'weekly';
 
-    // The new generateDigest uses configOverride; digest type selection is not yet wired
-    const result = await generateDigest();
+    const result = await generateDigest(digestType);
 
     return NextResponse.json({
       success: true,

@@ -10,6 +10,7 @@ export async function GET() {
         name,
         url,
         is_job_board,
+        category,
         competitor_id,
         last_fetched_at,
         competitors (name)
@@ -27,6 +28,7 @@ export async function GET() {
         name: f.name,
         url: f.url,
         is_job_board: f.is_job_board,
+        category: (f as Record<string, unknown>).category || 'competitor',
         competitor_id: f.competitor_id,
         competitor_name: competitorName || 'Unknown',
         last_fetched_at: f.last_fetched_at,

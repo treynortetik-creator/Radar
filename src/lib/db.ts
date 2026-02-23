@@ -167,14 +167,19 @@ export interface IndustryNews {
   created_at: string;
 }
 
+export type DigestType = 'weekly' | 'monthly' | '90day' | '180day';
+
 export interface DigestConfig {
   id: number;
   system_prompt: string;
   focus_areas: string[] | null;
   output_format: string;
   delivery_day: number;
+  delivery_day_of_month: number;
   delivery_hour: number;
   model: string;
+  digest_type: DigestType;
+  reasoning_effort: 'off' | 'low' | 'medium' | 'high';
   is_active: boolean;
   updated_at: string;
 }

@@ -1,21 +1,22 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { generateDigest } from '@/lib/digest';
+import type { DigestType } from '@/lib/db';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const result = await generateDigest();
+    const body = await request.json().catch(() => ({}));
+    const validTypes: DigestType[] = ['weekly', 'monthly', '90day', '180day'];
+    const type: DigestType = validTypes.includes(body.type) ? body.type : 'weekly';
 
-    const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const result = await generateDigest(type);
 
     // Store the digest
     const { data, error } = await supabaseAdmin
       .from('weekly_digests')
       .insert({
-        week_start: sevenDaysAgo.toISOString().split('T')[0],
-        week_end: now.toISOString().split('T')[0],
+        week_start: result.period_start,
+        week_end: result.period_end,
         content: result.content,
         summary: result.summary,
         event_count: result.event_count,
@@ -27,6 +28,7 @@ export async function POST() {
         slack_posted: result.slack_posted,
         slack_ts: result.slack_ts,
         slack_error: result.slack_error,
+        digest_type: type,
         status: 'generated',
       })
       .select()

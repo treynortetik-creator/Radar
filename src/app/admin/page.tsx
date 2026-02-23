@@ -15,12 +15,14 @@ import {
   DocumentIcon,
 } from '@/components/icons';
 import type { DigestConfig, WeeklyDigest } from '@/lib/db';
+import { CollapsibleSection } from '@/components/CollapsibleSection';
 
 interface Feed {
   id: number;
   name: string;
   url: string;
   is_job_board: boolean;
+  category: string;
   competitor_id: number;
   competitor_name: string;
   last_fetched_at: string | null;
@@ -84,12 +86,17 @@ export default function AdminPage() {
   const [modelSearch, setModelSearch] = useState('');
   const [digestModelSearch, setDigestModelSearch] = useState('');
 
+  // Slack state
+  const [slackStatus, setSlackStatus] = useState<{ configured: boolean; token_set: boolean; channel_set: boolean } | null>(null);
+  const [slackTesting, setSlackTesting] = useState(false);
+
   useEffect(() => {
     loadConfig();
     loadFeeds();
     loadCompetitors();
     loadDigestConfig();
     loadDigestHistory();
+    loadSlackStatus();
     loadModels();
   }, []);
 
@@ -186,6 +193,31 @@ export default function AdminPage() {
       setAvailableModels(data.models || []);
     } catch (err) {
       console.error('Failed to load models:', err);
+    }
+  };
+
+  const loadSlackStatus = async () => {
+    try {
+      const res = await fetch('/api/slack/status');
+      const data = await res.json();
+      setSlackStatus(data);
+    } catch (err) {
+      console.error('Failed to load Slack status:', err);
+    }
+  };
+
+  const testSlack = async () => {
+    setSlackTesting(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/slack/test', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Slack test failed');
+      setMessage({ type: 'success', text: 'Slack test message sent successfully!' });
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Slack test failed' });
+    } finally {
+      setSlackTesting(false);
     }
   };
 
@@ -354,6 +386,21 @@ export default function AdminPage() {
     }
   };
 
+  const getNextScheduledRun = (): string => {
+    const now = new Date();
+    if (digestPeriod === 'weekly') {
+      const daysUntil = (digestDeliveryDay - now.getUTCDay() + 7) % 7;
+      const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + (daysUntil === 0 && now.getUTCHours() >= digestDeliveryHour ? 7 : daysUntil), digestDeliveryHour));
+      return next.toUTCString();
+    } else {
+      const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), digestDeliveryDayOfMonth, digestDeliveryHour));
+      if (now > next) {
+        next.setUTCMonth(next.getUTCMonth() + 1);
+      }
+      return next.toUTCString();
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -422,31 +469,15 @@ export default function AdminPage() {
       {activeTab === 'settings' && (
         <>
           {/* Ingestion Control */}
-          <section className="card-base p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <SignalIcon strength={4} className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-lg font-semibold text-slate-100">RSS Ingestion</h2>
-                </div>
-                <p className="text-sm text-slate-400 mb-3">
-                  Fetch all RSS feeds, score new items with AI, and store in database.
-                </p>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <div className="flex items-center gap-1.5">
-                    <ClockIcon className="w-3.5 h-3.5" />
-                    <span>
-                      {lastIngest
-                        ? `Last run: ${new Date(lastIngest).toLocaleString()}`
-                        : 'Never run'}
-                    </span>
-                  </div>
-                  <span className="text-slate-700">•</span>
-                  <code className="bg-slate-900/60 px-2 py-0.5 rounded text-slate-400">POST /api/ingest</code>
-                </div>
-              </div>
+          <CollapsibleSection
+            title="RSS Ingestion"
+            subtitle="Fetch all RSS feeds, score new items with AI, and store in database"
+            icon={<SignalIcon strength={4} className="w-4 h-4 text-amber-400" />}
+            storageKey="settings-rss"
+            defaultOpen={true}
+            headerRight={
               <button
-                onClick={runIngestion}
+                onClick={(e) => { e.stopPropagation(); runIngestion(); }}
                 disabled={ingesting}
                 className="btn-primary flex items-center gap-2"
               >
@@ -462,12 +493,32 @@ export default function AdminPage() {
                   </>
                 )}
               </button>
+            }
+          >
+            <div className="flex items-center gap-4 text-xs text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <ClockIcon className="w-3.5 h-3.5" />
+                <span>
+                  {lastIngest
+                    ? `Last run: ${new Date(lastIngest).toLocaleString()}`
+                    : 'Never run'}
+                </span>
+              </div>
+              <span className="text-slate-700">•</span>
+              <code className="bg-slate-900/60 px-2 py-0.5 rounded text-slate-400">POST /api/ingest</code>
             </div>
-          </section>
+          </CollapsibleSection>
 
           {/* Model Selection */}
-          <section className="card-base p-6">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">AI Model Selection</h2>
+          <CollapsibleSection
+            title="AI Model Selection"
+            subtitle="Model used for RSS feed scoring"
+            storageKey="settings-model"
+            defaultOpen={false}
+            headerRight={model ? (
+              <code className="text-xs bg-slate-900/60 px-1.5 py-0.5 rounded text-amber-400">{model.split('/').pop()}</code>
+            ) : undefined}
+          >
             <div className="space-y-3">
               <input
                 type="text"
@@ -506,19 +557,16 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-          </section>
+          </CollapsibleSection>
 
           {/* System Prompt */}
-          <section className="card-base p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100">System Prompt</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Placeholders: {'{competitor}'}, {'{title}'}, {'{summary}'}, {'{date}'}, {'{is_job}'}
-                </p>
-              </div>
-              <span className="text-xs text-slate-500 font-mono">{systemPrompt.length.toLocaleString()} chars</span>
-            </div>
+          <CollapsibleSection
+            title="System Prompt"
+            subtitle={`Placeholders: {competitor}, {title}, {summary}, {date}, {is_job}`}
+            storageKey="settings-prompt"
+            defaultOpen={false}
+            headerRight={<span className="text-xs text-slate-500 font-mono">{systemPrompt.length.toLocaleString()} chars</span>}
+          >
             <textarea
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
@@ -545,18 +593,16 @@ export default function AdminPage() {
                 )}
               </button>
             </div>
-          </section>
+          </CollapsibleSection>
 
           {/* Master Context */}
-          <section className="card-base p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100">Master Context</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  SafelyYou company context injected into all AI prompts (ingest + digest)
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
+          <CollapsibleSection
+            title="Master Context"
+            subtitle="SafelyYou company context injected into all AI prompts (ingest + digest)"
+            storageKey="settings-context"
+            defaultOpen={false}
+            headerRight={
+              <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs text-slate-500 font-mono">{masterContext.length.toLocaleString()} chars</span>
                 {masterContext.length > 0 ? (
                   <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-1 rounded-lg">
@@ -570,7 +616,8 @@ export default function AdminPage() {
                   </span>
                 )}
               </div>
-            </div>
+            }
+          >
             <textarea
               value={masterContext}
               onChange={(e) => setMasterContext(e.target.value)}
@@ -578,24 +625,24 @@ export default function AdminPage() {
               className="input-base font-mono text-sm resize-y min-h-[150px]"
               placeholder="Paste SafelyYou Master Context here..."
             />
-          </section>
+          </CollapsibleSection>
 
           {/* Feeds Management */}
-          <section className="card-base p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100">RSS Feeds</h2>
-                <p className="text-xs text-slate-500 mt-1">{feeds.length} feeds configured</p>
-              </div>
+          <CollapsibleSection
+            title="RSS Feeds"
+            subtitle={`${feeds.length} feeds configured`}
+            storageKey="settings-feeds"
+            defaultOpen={true}
+            headerRight={
               <button
-                onClick={() => setShowAddFeed(true)}
+                onClick={(e) => { e.stopPropagation(); setShowAddFeed(true); }}
                 className="btn-secondary flex items-center gap-2"
               >
                 <PlusIcon className="w-4 h-4" />
                 Add Feed
               </button>
-            </div>
-
+            }
+          >
             {/* Add Feed Form */}
             {showAddFeed && (
               <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 mb-4 animate-fade-in">
@@ -718,6 +765,11 @@ export default function AdminPage() {
                               Jobs
                             </span>
                           )}
+                          {feed.category === 'industry_news' && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded">
+                              Industry
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-slate-500 truncate">{feed.url}</div>
                         <div className="flex items-center gap-3 mt-1.5 text-[11px] text-slate-600">
@@ -758,7 +810,7 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-          </section>
+          </CollapsibleSection>
         </>
       )}
 
@@ -808,16 +860,13 @@ export default function AdminPage() {
           </div>
 
           {/* Digest Prompt */}
-          <section className="card-base p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100">Digest System Prompt</h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Master prompt that guides {digestPeriod} digest generation
-                </p>
-              </div>
-              <span className="text-xs text-slate-500 font-mono">{digestPrompt.length.toLocaleString()} chars</span>
-            </div>
+          <CollapsibleSection
+            title="Digest System Prompt"
+            subtitle={`Master prompt that guides ${digestPeriod} digest generation`}
+            storageKey="digest-prompt"
+            defaultOpen={false}
+            headerRight={<span className="text-xs text-slate-500 font-mono">{digestPrompt.length.toLocaleString()} chars</span>}
+          >
             <textarea
               value={digestPrompt}
               onChange={(e) => setDigestPrompt(e.target.value)}
@@ -825,16 +874,18 @@ export default function AdminPage() {
               className="input-base font-mono text-sm resize-y min-h-[200px]"
               placeholder="Enter digest system prompt..."
             />
-          </section>
+          </CollapsibleSection>
 
           {/* Focus Areas */}
-          <section className="card-base p-6">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-slate-100">Focus Areas</h2>
-              <p className="text-xs text-slate-500 mt-1">
-                Topics the digest should emphasize this period
-              </p>
-            </div>
+          <CollapsibleSection
+            title="Focus Areas"
+            subtitle="Topics the digest should emphasize this period"
+            storageKey="digest-focus"
+            defaultOpen={true}
+            headerRight={digestFocusAreas.length > 0 ? (
+              <span className="text-xs text-slate-500">{digestFocusAreas.length} active</span>
+            ) : undefined}
+          >
             <div className="flex flex-wrap gap-2 mb-3">
               {digestFocusAreas.map(area => (
                 <span
@@ -872,11 +923,51 @@ export default function AdminPage() {
                 Add
               </button>
             </div>
-          </section>
+          </CollapsibleSection>
 
           {/* Schedule & Model */}
-          <section className="card-base p-6">
-            <h2 className="text-lg font-semibold text-slate-100 mb-4">Schedule & Model</h2>
+          <CollapsibleSection
+            title="Schedule & Model"
+            storageKey="digest-schedule"
+            defaultOpen={true}
+          >
+            {/* Active toggle + Next run indicator */}
+            <div className="flex items-center justify-between mb-6 p-3 rounded-xl bg-slate-900/40 border border-slate-700/30">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={digestConfig?.is_active ?? true}
+                    onChange={(e) => {
+                      if (digestConfig) {
+                        const updated = { ...digestConfig, is_active: e.target.checked };
+                        setDigestConfig(updated);
+                        fetch('/api/digest/config', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: digestConfig.id, is_active: e.target.checked }),
+                        }).then(() => {
+                          setMessage({ type: 'success', text: `Schedule ${e.target.checked ? 'activated' : 'deactivated'}` });
+                        });
+                      }
+                    }}
+                    className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500"
+                  />
+                  <span className="text-sm font-medium text-slate-200">
+                    {digestConfig?.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </label>
+                <span className={`w-2 h-2 rounded-full ${digestConfig?.is_active ? 'bg-emerald-400' : 'bg-red-400'}`} />
+              </div>
+              <div className="text-xs text-slate-500">
+                <ClockIcon className="w-3.5 h-3.5 inline mr-1" />
+                Next run:{' '}
+                {digestConfig?.is_active
+                  ? getNextScheduledRun()
+                  : 'Disabled'}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
               <div>
                 {digestPeriod === 'weekly' ? (
@@ -1023,7 +1114,7 @@ export default function AdminPage() {
                 )}
               </button>
             </div>
-          </section>
+          </CollapsibleSection>
 
           {/* Preview Output */}
           {previewContent && (
@@ -1046,19 +1137,21 @@ export default function AdminPage() {
           )}
 
           {/* Digest History */}
-          <section className="card-base p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100">Digest History</h2>
-                <p className="text-xs text-slate-500 mt-1">Recent {digestPeriod} digests</p>
-              </div>
+          <CollapsibleSection
+            title="Digest History"
+            subtitle={`Recent ${digestPeriod} digests`}
+            storageKey="digest-history"
+            defaultOpen={true}
+            headerRight={
               <Link
                 href="/digest"
+                onClick={(e) => e.stopPropagation()}
                 className="text-xs text-amber-400 hover:text-amber-300 transition-colors"
               >
                 View All →
               </Link>
-            </div>
+            }
+          >
             <div className="space-y-2">
               {digestHistory.map(d => {
                 const start = new Date(d.week_start + 'T00:00:00');
@@ -1102,7 +1195,61 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
-          </section>
+          </CollapsibleSection>
+
+          {/* Slack Integration */}
+          <CollapsibleSection
+            title="Slack Integration"
+            subtitle="Status and test messaging"
+            storageKey="digest-slack"
+            defaultOpen={true}
+          >
+            <div className="space-y-4">
+              {/* Status indicators */}
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${slackStatus?.token_set ? 'bg-emerald-400' : 'bg-red-400 animate-pulse'}`} />
+                  <span className="text-xs text-slate-400">Bot Token: {slackStatus?.token_set ? 'Set' : 'Missing'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full ${slackStatus?.channel_set ? 'bg-emerald-400' : 'bg-red-400 animate-pulse'}`} />
+                  <span className="text-xs text-slate-400">Channel ID: {slackStatus?.channel_set ? 'Set' : 'Missing'}</span>
+                </div>
+              </div>
+
+              {/* Last digest Slack status */}
+              {digestHistory.length > 0 && (
+                <div className="text-xs text-slate-500">
+                  Last digest Slack status:{' '}
+                  <span className={digestHistory[0].slack_posted ? 'text-emerald-400' : 'text-red-400'}>
+                    {digestHistory[0].slack_posted ? 'Posted successfully' : digestHistory[0].slack_error || 'Not posted'}
+                  </span>
+                </div>
+              )}
+
+              {/* Test button */}
+              <button
+                onClick={testSlack}
+                disabled={slackTesting || !slackStatus?.configured}
+                className="btn-secondary flex items-center gap-2"
+              >
+                {slackTesting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Test Message'
+                )}
+              </button>
+
+              {!slackStatus?.configured && (
+                <p className="text-xs text-slate-600">
+                  Set SLACK_BOT_TOKEN and SLACK_INTEL_CHANNEL_ID environment variables to enable Slack integration.
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
         </>
       )}
     </div>

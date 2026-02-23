@@ -2,9 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import { supabaseAdmin } from './supabase-admin';
 import { postDigestToSlack } from './slack';
-import type { DigestConfig } from './db';
+import type { DigestConfig, DigestType } from './db';
 
-export type DigestType = 'weekly' | 'monthly' | '90day' | '180day';
+export type { DigestType };
 
 interface DigestResult {
   content: string;
@@ -18,6 +18,9 @@ interface DigestResult {
   slack_posted: boolean;
   slack_ts: string | null;
   slack_error: string | null;
+  digest_type: DigestType;
+  period_start: string;
+  period_end: string;
 }
 
 interface EventRow {
@@ -149,14 +152,16 @@ function loadIndustryContext(): string {
 /**
  * Generate a weekly intel digest using AI
  */
-export async function generateDigest(configOverride?: Partial<DigestConfig>): Promise<DigestResult> {
-  // 1. Calculate date range (past 7 days)
+export async function generateDigest(type: DigestType = 'weekly', configOverride?: Partial<DigestConfig>): Promise<DigestResult> {
+  // 1. Calculate date range based on digest type
+  const daysMap: Record<DigestType, number> = { weekly: 7, monthly: 30, '90day': 90, '180day': 180 };
+  const days = daysMap[type];
   const now = new Date();
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const rangeStart = new Date(now);
+  rangeStart.setDate(rangeStart.getDate() - days);
 
   const weekEnd = now.toISOString().split('T')[0];
-  const weekStart = sevenDaysAgo.toISOString().split('T')[0];
+  const weekStart = rangeStart.toISOString().split('T')[0];
 
   // 2. Fetch events from past 7 days
   const { data: events, error: eventsError } = await supabaseAdmin
@@ -166,7 +171,7 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
       threat_level, priority_score, priority_tier, key_takeaway,
       competitors!competitor_events_competitor_id_fkey (name)
     `)
-    .gte('published_at', sevenDaysAgo.toISOString())
+    .gte('published_at', rangeStart.toISOString())
     .order('priority_score', { ascending: false })
     .limit(40);
 
@@ -177,7 +182,7 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
   const { data: industryData, error: industryError } = await supabaseAdmin
     .from('industry_news')
     .select('id, title, url, summary, published_at, source_name, relevance_tier, relevance_summary')
-    .gte('published_at', sevenDaysAgo.toISOString())
+    .gte('published_at', rangeStart.toISOString())
     .order('published_at', { ascending: false })
     .limit(80);
 
@@ -197,6 +202,7 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
     .from('digest_config')
     .select('*')
     .eq('is_active', true)
+    .eq('digest_type', type)
     .order('id', { ascending: false })
     .limit(1)
     .single();
@@ -210,6 +216,7 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
   const { data: prevDigest } = await supabaseAdmin
     .from('weekly_digests')
     .select('summary, content, week_start, week_end')
+    .eq('digest_type', type)
     .order('created_at', { ascending: false })
     .limit(1)
     .single();
@@ -259,18 +266,26 @@ Each section must be concise, executive-ready, and specific to SafelyYou actions
 
   const model = config.model || 'google/gemini-2.0-flash-001';
 
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages: [{ role: 'user', content: userMessage }],
+    temperature: 0.3,
+    max_tokens: 4000,
+  };
+
+  // Pass reasoning effort to OpenRouter when enabled
+  const effort = config.reasoning_effort;
+  if (effort && effort !== 'off') {
+    requestBody.reasoning = { effort };
+  }
+
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: userMessage }],
-      temperature: 0.3,
-      max_tokens: 4000,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -310,6 +325,9 @@ Each section must be concise, executive-ready, and specific to SafelyYou actions
     slack_posted: slackResult.ok,
     slack_ts: slackResult.ts || null,
     slack_error: slackResult.ok ? null : (slackResult.error || null),
+    digest_type: type,
+    period_start: weekStart,
+    period_end: weekEnd,
   };
 }
 
