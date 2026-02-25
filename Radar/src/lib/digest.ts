@@ -190,7 +190,7 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
   const masterContext = loadMasterContext();
   const industryContext = loadIndustryContext();
 
-  // 5. Load digest config
+  // 5. Load digest config (PGRST116 = no rows — not an error, just no config yet)
   const { data: configData, error: configError } = await supabaseAdmin
     .from('digest_config')
     .select('*')
@@ -199,7 +199,9 @@ export async function generateDigest(configOverride?: Partial<DigestConfig>): Pr
     .limit(1)
     .single();
 
-  if (configError) throw new Error(`Failed to load digest config: ${configError.message}`);
+  if (configError && configError.code !== 'PGRST116') {
+    throw new Error(`Failed to load digest config: ${configError.message}`);
+  }
 
   const config = { ...configData, ...configOverride } as DigestConfig;
 
