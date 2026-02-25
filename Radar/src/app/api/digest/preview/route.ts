@@ -1,0 +1,25 @@
+import { NextResponse } from 'next/server';
+import { generateDigest } from '@/lib/digest';
+import { getServerUser, unauthorizedResponse } from '@/lib/auth-server';
+
+export async function POST() {
+  const user = await getServerUser();
+  if (!user) return unauthorizedResponse();
+  try {
+    const result = await generateDigest();
+
+    return NextResponse.json({
+      success: true,
+      content: result.content,
+      summary: result.summary,
+      event_count: result.event_count,
+      competitor_breakdown: result.competitor_breakdown,
+      model_used: result.model_used,
+      tokens_used: result.tokens_used,
+    });
+  } catch (error) {
+    console.error('Error generating preview:', error);
+    const message = error instanceof Error ? error.message : 'Failed to generate preview';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { generateDigest } from '@/lib/digest';
+import { getServerUser, unauthorizedResponse } from '@/lib/auth-server';
 
 export async function POST() {
+  const user = await getServerUser();
+  if (!user) return unauthorizedResponse();
   try {
     const result = await generateDigest();
 

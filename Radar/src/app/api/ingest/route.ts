@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { validateIngestSecret, getServerUser } from '@/lib/auth-server';
 import crypto from 'crypto';
 
 interface FeedItem {
@@ -212,8 +213,15 @@ async function scoreItem(
   }
 }
 
-export async function POST() {
-  console.log('Starting ingestion...');
+export async function POST(request: Request) {
+  // Allow either a logged-in user OR a valid INGEST_API_SECRET
+  const user = await getServerUser();
+  if (!user && !validateIngestSecret(request)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
     // Get config
@@ -252,8 +260,6 @@ export async function POST() {
       return NextResponse.json({ error: 'No feeds configured' }, { status: 400 });
     }
 
-    // Fetch all feeds
-    console.log(`Fetching ${feedsData.length} feeds...`);
     const allItems: FeedItem[] = [];
 
     for (const feed of feedsData) {
@@ -285,8 +291,6 @@ export async function POST() {
         .eq('id', feed.id);
     }
 
-    console.log(`Fetched ${allItems.length} total items`);
-
     // Check for duplicates - batch hash checks to avoid Supabase .in() limits
     const hashes = allItems.map(i => i.url_hash);
     const BATCH_SIZE = 50;
@@ -308,7 +312,6 @@ export async function POST() {
 
     const newItems = allItems.filter(i => !existingHashes.has(i.url_hash));
 
-    console.log(`${newItems.length} new items (${allItems.length - newItems.length} duplicates)`);
 
     if (newItems.length === 0) {
       // Update last_ingest time
@@ -336,7 +339,6 @@ export async function POST() {
       // Industry news items skip AI scoring — ingest with low defaults
       let scores: AIScores;
       if (isIndustryNews) {
-        console.log(`Industry news (no scoring): ${item.title.slice(0, 50)}...`);
         scores = {
           theme: 'Thought Leadership',
           threat_level: 1,
@@ -349,7 +351,6 @@ export async function POST() {
           auto_flag_triggers: '',
         };
       } else {
-        console.log(`Scoring: ${item.title.slice(0, 50)}...`);
         scores = await scoreItem(item, systemPrompt, model, apiKey);
       }
 
@@ -395,8 +396,6 @@ export async function POST() {
     await supabaseAdmin
       .from('admin_config')
       .upsert({ key: 'last_ingest', value: new Date().toISOString() }, { onConflict: 'key' });
-
-    console.log(`Ingestion complete: ${processed} items processed`);
 
     return NextResponse.json({
       success: true,
