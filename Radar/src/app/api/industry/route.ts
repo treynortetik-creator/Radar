@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+const VALID_TIERS = new Set(['Critical', 'High', 'Major', 'Notable', 'Background', 'Low']);
+
 function parseBoolean(value: string | null): boolean | null {
   if (value === null) return null;
   if (value.toLowerCase() === 'true') return true;
@@ -11,7 +13,8 @@ function parseBoolean(value: string | null): boolean | null {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const tier = searchParams.get('tier');
+    const tierParam = searchParams.get('tier');
+    const tier = tierParam && VALID_TIERS.has(tierParam) ? tierParam : null;
     const source = searchParams.get('source');
     const isRead = parseBoolean(searchParams.get('is_read'));
     const dateFrom = searchParams.get('date_from') || searchParams.get('start_date');

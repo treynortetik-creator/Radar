@@ -8,7 +8,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const competitorId = parseInt(id);
+    const competitorId = parseInt(id, 10);
+    if (isNaN(competitorId)) {
+      return NextResponse.json({ error: 'Invalid competitor ID' }, { status: 400 });
+    }
 
     const { data, error } = await supabaseAdmin
       .from('battle_cards')
@@ -34,7 +37,10 @@ export async function PUT(
 
   try {
     const { id } = await params;
-    const competitorId = parseInt(id);
+    const competitorId = parseInt(id, 10);
+    if (isNaN(competitorId)) {
+      return NextResponse.json({ error: 'Invalid competitor ID' }, { status: 400 });
+    }
     const body = await request.json() as Record<string, unknown>;
 
     const { data: existing } = await supabaseAdmin

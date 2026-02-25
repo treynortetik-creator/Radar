@@ -287,7 +287,7 @@ server.tool(
   "read status, and date range. Returns title, summary, source, published date, and relevance tier.",
   {
     tier: z
-      .enum(["Critical", "High", "Medium", "Low"])
+      .enum(["Major", "Notable", "Background"])
       .optional()
       .describe("Filter by relevance tier"),
     source: z

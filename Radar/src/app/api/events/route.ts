@@ -8,6 +8,11 @@ const VALID_THEMES = new Set([
   'Event/Conference', 'Thought Leadership', 'Job Posting',
 ]);
 
+// Escape ilike wildcard characters so user input is treated as literal
+function escapeIlike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const competitor = searchParams.get('competitor');
@@ -58,7 +63,8 @@ export async function GET(request: NextRequest) {
     query = query.eq('theme', theme);
   }
   if (search) {
-    query = query.or(`title.ilike.%${search}%,summary.ilike.%${search}%,key_takeaway.ilike.%${search}%`);
+    const safe = escapeIlike(search);
+    query = query.or(`title.ilike.%${safe}%,summary.ilike.%${safe}%,key_takeaway.ilike.%${safe}%`);
   }
 
   // Order by published date (newest first) as default

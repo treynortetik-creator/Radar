@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getServerUser, unauthorizedResponse } from '@/lib/auth-server';
 
 export async function GET() {
@@ -35,9 +36,9 @@ export async function POST(request: Request) {
     const model = typeof body.model === 'string' ? body.model : undefined;
     const system_prompt = typeof body.system_prompt === 'string' ? body.system_prompt : undefined;
 
-    // Update model
+    // Update model (use service role to bypass RLS on admin_config writes)
     if (model) {
-      const { error: modelError } = await supabase
+      const { error: modelError } = await supabaseAdmin
         .from('admin_config')
         .upsert({ key: 'openrouter_model', value: model, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (modelError) throw modelError;
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
 
     // Update system prompt
     if (system_prompt !== undefined) {
-      const { error: promptError } = await supabase
+      const { error: promptError } = await supabaseAdmin
         .from('admin_config')
         .upsert({ key: 'system_prompt', value: system_prompt, updated_at: new Date().toISOString() }, { onConflict: 'key' });
       if (promptError) throw promptError;

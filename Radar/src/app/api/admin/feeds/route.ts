@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-admin';
 import { getServerUser, unauthorizedResponse } from '@/lib/auth-server';
 
 export async function GET() {
@@ -56,7 +57,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    // Use service role to bypass RLS for admin writes
+    const { error } = await supabaseAdmin
       .from('feeds')
       .insert({ name, url, is_job_board, competitor_id });
 
@@ -85,7 +87,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Missing feed ID' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    // Use service role to bypass RLS for admin writes
+    const { error } = await supabaseAdmin
       .from('feeds')
       .update({ name, url, is_job_board, competitor_id })
       .eq('id', id);
@@ -110,7 +113,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing feed ID' }, { status: 400 });
     }
 
-    const { error } = await supabase
+    // Use service role to bypass RLS for admin writes
+    const { error } = await supabaseAdmin
       .from('feeds')
       .delete()
       .eq('id', id);

@@ -79,7 +79,7 @@ function DigestListPage() {
             const style = statusStyles[digest.status] || statusStyles.generated;
             const snippet = digest.summary
               ? digest.summary.replace(/^#.*\n*/gm, '').trim().slice(0, 200)
-              : digest.content.slice(0, 200);
+              : (digest.content || '').slice(0, 200);
 
             return (
               <Link
