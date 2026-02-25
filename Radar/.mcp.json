@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "radar": {
+      "command": "node",
+      "args": ["mcp-server/dist/index.js"],
+      "env": {
+        "RADAR_URL": "${RADAR_URL}",
+        "RADAR_API_KEY": "${RADAR_API_KEY}"
+      }
+    }
+  }
+}
