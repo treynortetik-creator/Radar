@@ -44,6 +44,14 @@ function splitDigestSections(content: string): {
  * Simple markdown to HTML converter - no external dependencies.
  * Handles: headings, bold, italic, links, lists, horizontal rules, code blocks.
  */
+function sanitizeHref(url: string): string {
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed)) {
+    return trimmed;
+  }
+  return '#';
+}
+
 function renderMarkdown(md: string): string {
   let html = md
     .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="bg-slate-900/60 border border-slate-700/40 rounded-lg p-4 overflow-x-auto text-sm font-mono text-slate-300 my-4"><code>$2</code></pre>')
@@ -55,7 +63,8 @@ function renderMarkdown(md: string): string {
     .replace(/\*\*\*(.+?)\*\*\*/g, '<strong class="font-bold text-slate-200"><em>$1</em></strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-slate-200">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em class="italic text-slate-300">$1</em>')
-    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-amber-400 hover:text-amber-300 underline underline-offset-2">$1</a>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_: string, text: string, url: string) =>
+      `<a href="${sanitizeHref(url)}" target="_blank" rel="noopener noreferrer" class="text-amber-400 hover:text-amber-300 underline underline-offset-2">${text}</a>`)
     .replace(/^---$/gm, '<hr class="border-slate-800 my-8" />')
     .replace(/^[\-*] (.+)$/gm, '<li class="ml-4 pl-2 text-slate-300 before:content-[\'•\'] before:text-amber-500 before:mr-2">$1</li>')
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 pl-2 text-slate-300 list-decimal">$1</li>')
