@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateDigest } from '@/lib/digest';
 import type { DigestType } from '@/lib/db';
 
+// Allow up to 5 minutes for frontier thinking models
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));

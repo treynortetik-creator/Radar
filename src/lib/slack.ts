@@ -52,21 +52,22 @@ function buildBlocks(payload: SlackDigestPayload): unknown[] {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: `SafelyYou Intel Digest — Week of ${payload.weekLabel}`,
+        text: `\ud83d\udce1 SafelyYou Intel Digest \u2014 Week of ${payload.weekLabel}`,
+        emoji: true,
       },
     },
     {
       type: 'section',
       fields: [
-        { type: 'mrkdwn', text: `*Competitor Events*\n${payload.eventCount}` },
-        { type: 'mrkdwn', text: `*Industry News*\n${payload.industryNewsCount}` },
+        { type: 'mrkdwn', text: `\ud83c\udfaf *Competitor Events*\n${payload.eventCount}` },
+        { type: 'mrkdwn', text: `\ud83d\udcf0 *Industry News*\n${payload.industryNewsCount}` },
       ],
     },
     {
       type: 'section',
       fields: [
-        { type: 'mrkdwn', text: `*Competitors*\n${clip(formatBreakdown(payload.competitorBreakdown), 500)}` },
-        { type: 'mrkdwn', text: `*By Tier*\n${clip(formatBreakdown(payload.industryBreakdown), 500)}` },
+        { type: 'mrkdwn', text: `\ud83c\udfc6 *Competitors*\n${clip(formatBreakdown(payload.competitorBreakdown), 500)}` },
+        { type: 'mrkdwn', text: `\ud83d\udcca *By Tier*\n${clip(formatBreakdown(payload.industryBreakdown), 500)}` },
       ],
     },
     { type: 'divider' },
@@ -79,7 +80,7 @@ function buildBlocks(payload: SlackDigestPayload): unknown[] {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `<${payload.reportUrl}|View Full Report>`,
+        text: `\ud83d\udcc4 <${payload.reportUrl}|View Full Report>`,
       },
     },
   ];

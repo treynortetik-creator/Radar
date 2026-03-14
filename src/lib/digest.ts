@@ -280,12 +280,12 @@ Provide exactly three top-level markdown sections in this order:
 The Competitive Intel and Industry News sections should be detailed, executive-ready, and specific to SafelyYou actions/opportunities.
 
 The Slack Executive Summary section is a SHORT plain-text summary (max 1200 characters) covering highlights from BOTH competitive intel and industry news. Rules for this section:
-- Use plain bullet points starting with the bullet character
+- Use emoji bullet points (e.g. \ud83d\udd34 for threats, \ud83d\udfe2 for opportunities, \ud83d\udca1 for insights, \u26a0\ufe0f for warnings, \ud83d\ude80 for launches, \ud83d\udcb0 for funding, \ud83e\udd1d for partnerships)
 - NO markdown formatting (no **, no ##, no []() links)
-- Group bullets under two plain-text labels: "Competitive Intel" and "Industry News"
+- Group bullets under two labels with emojis: "\ud83c\udfaf Competitive Intel:" and "\ud83d\udcf0 Industry News:"
 - 3-5 bullets per group, each bullet max ~100 characters
 - Focus on the most actionable or notable items
-- End with one sentence on the overall takeaway`;
+- End with one sentence overall takeaway prefixed with \ud83d\udca1`;
 
   // 8. Call OpenRouter API
   const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -306,14 +306,24 @@ The Slack Executive Summary section is a SHORT plain-text summary (max 1200 char
     requestBody.reasoning = { effort };
   }
 
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(requestBody),
-  });
+  // 4-minute timeout for frontier thinking models (leaves buffer for DB save + Slack)
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 240_000);
+
+  let response: Response;
+  try {
+    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

@@ -4,6 +4,9 @@ import { generateDigest } from '@/lib/digest';
 import { postDigestToSlack } from '@/lib/slack';
 import type { DigestType } from '@/lib/db';
 
+// Allow up to 5 minutes for frontier thinking models
+export const maxDuration = 300;
+
 function getAppUrl(): string {
   return process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`

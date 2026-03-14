@@ -1181,7 +1181,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
               <div>
                 {digestPeriod === 'weekly' ? (
                   <>
@@ -1224,40 +1224,6 @@ export default function AdminPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1.5">AI Model</label>
-                <input
-                  type="text"
-                  value={digestModelSearch}
-                  onChange={(e) => setDigestModelSearch(e.target.value)}
-                  placeholder="Search models..."
-                  className="input-base mb-1"
-                />
-                <select
-                  value={digestModel}
-                  onChange={(e) => setDigestModel(e.target.value)}
-                  className="input-base"
-                  size={5}
-                >
-                  {availableModels
-                    .filter(m =>
-                      m.name.toLowerCase().includes(digestModelSearch.toLowerCase()) ||
-                      m.id.toLowerCase().includes(digestModelSearch.toLowerCase())
-                    )
-                    .map(m => {
-                      const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
-                      const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
-                      const costStr = promptCost === 0 && completionCost === 0
-                        ? 'Free'
-                        : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
-                      return (
-                        <option key={m.id} value={m.id}>
-                          {m.name} — {costStr}
-                        </option>
-                      );
-                    })}
-                </select>
-              </div>
-              <div>
                 <label className="block text-xs text-slate-400 mb-1.5">Thinking Mode</label>
                 <select
                   value={digestReasoningEffort}
@@ -1271,6 +1237,40 @@ export default function AdminPage() {
                 </select>
                 <p className="text-[10px] text-slate-500 mt-1">Extended reasoning for supported models</p>
               </div>
+            </div>
+            <div className="mb-6">
+              <label className="block text-xs text-slate-400 mb-1.5">AI Model</label>
+              <input
+                type="text"
+                value={digestModelSearch}
+                onChange={(e) => setDigestModelSearch(e.target.value)}
+                placeholder="Search models..."
+                className="input-base mb-1"
+              />
+              <select
+                value={digestModel}
+                onChange={(e) => setDigestModel(e.target.value)}
+                className="input-base w-full"
+                size={8}
+              >
+                {availableModels
+                  .filter(m =>
+                    m.name.toLowerCase().includes(digestModelSearch.toLowerCase()) ||
+                    m.id.toLowerCase().includes(digestModelSearch.toLowerCase())
+                  )
+                  .map(m => {
+                    const promptCost = parseFloat(m.pricing?.prompt || '0') * 1_000_000;
+                    const completionCost = parseFloat(m.pricing?.completion || '0') * 1_000_000;
+                    const costStr = promptCost === 0 && completionCost === 0
+                      ? 'Free'
+                      : `$${promptCost.toFixed(2)}/$${completionCost.toFixed(2)} per M tokens`;
+                    return (
+                      <option key={m.id} value={m.id}>
+                        {m.name} — {costStr}
+                      </option>
+                    );
+                  })}
+              </select>
             </div>
 
             {/* Save Config + Generate buttons */}
