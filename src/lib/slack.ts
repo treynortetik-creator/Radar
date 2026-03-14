@@ -5,16 +5,17 @@ interface SlackPostResult {
   skipped?: boolean;
 }
 
-interface SlackDigestPayload {
+export interface SlackDigestPayload {
   weekLabel: string;
-  digestContent: string;
+  slackSummary: string;
   eventCount: number;
   industryNewsCount: number;
   competitorBreakdown: Record<string, number>;
   industryBreakdown: Record<string, number>;
+  reportUrl: string;
 }
 
-function clip(text: string, max = 2900): string {
+function clip(text: string, max: number): string {
   if (text.length <= max) return text;
   return `${text.slice(0, max - 1)}…`;
 }
@@ -22,34 +23,64 @@ function clip(text: string, max = 2900): string {
 function formatBreakdown(breakdown: Record<string, number>): string {
   const rows = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
   if (rows.length === 0) return 'None';
-  return rows.map(([key, count]) => `${key}: ${count}`).join(' | ');
+  return rows.map(([key, count]) => `${key}: ${count}`).join('  |  ');
+}
+
+/**
+ * Convert the plain-text executive summary into Slack mrkdwn.
+ * Bolds group labels (lines ending with colon) and preserves bullet structure.
+ */
+function toSlackMrkdwn(summary: string): string {
+  return summary
+    .split('\n')
+    .map((line) => {
+      const trimmed = line.trim();
+      // Bold group labels like "Competitive Intel:" or "Industry News:"
+      if (/^[A-Z][\w\s/]+:$/i.test(trimmed)) {
+        return `*${trimmed}*`;
+      }
+      return trimmed;
+    })
+    .join('\n');
 }
 
 function buildBlocks(payload: SlackDigestPayload): unknown[] {
+  const summaryMrkdwn = clip(toSlackMrkdwn(payload.slackSummary), 2000);
+
   return [
     {
       type: 'header',
-      text: { type: 'plain_text', text: `SafelyYou Competitive Intel - Week of ${payload.weekLabel}` },
+      text: {
+        type: 'plain_text',
+        text: `SafelyYou Intel Digest — Week of ${payload.weekLabel}`,
+      },
     },
     {
       type: 'section',
       fields: [
         { type: 'mrkdwn', text: `*Competitor Events*\n${payload.eventCount}` },
-        { type: 'mrkdwn', text: `*Industry News (Major/Notable)*\n${payload.industryNewsCount}` },
+        { type: 'mrkdwn', text: `*Industry News*\n${payload.industryNewsCount}` },
       ],
     },
     {
       type: 'section',
-      text: { type: 'mrkdwn', text: `*Competitor Breakdown*\n${clip(formatBreakdown(payload.competitorBreakdown), 1000)}` },
-    },
-    {
-      type: 'section',
-      text: { type: 'mrkdwn', text: `*Industry Breakdown*\n${clip(formatBreakdown(payload.industryBreakdown), 1000)}` },
+      fields: [
+        { type: 'mrkdwn', text: `*Competitors*\n${clip(formatBreakdown(payload.competitorBreakdown), 500)}` },
+        { type: 'mrkdwn', text: `*By Tier*\n${clip(formatBreakdown(payload.industryBreakdown), 500)}` },
+      ],
     },
     { type: 'divider' },
     {
       type: 'section',
-      text: { type: 'mrkdwn', text: clip(payload.digestContent) },
+      text: { type: 'mrkdwn', text: summaryMrkdwn },
+    },
+    { type: 'divider' },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `<${payload.reportUrl}|View Full Report>`,
+      },
     },
   ];
 }
@@ -68,6 +99,9 @@ export async function postDigestToSlack(payload: SlackDigestPayload): Promise<Sl
   }
 
   try {
+    // Fallback text for notifications (plain text, no blocks)
+    const fallbackText = `SafelyYou Intel Digest — Week of ${payload.weekLabel}\n${clip(payload.slackSummary, 2500)}\n${payload.reportUrl}`;
+
     const response = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',
       headers: {
@@ -76,7 +110,7 @@ export async function postDigestToSlack(payload: SlackDigestPayload): Promise<Sl
       },
       body: JSON.stringify({
         channel,
-        text: clip(payload.digestContent, 3000),
+        text: clip(fallbackText, 3000),
         blocks: buildBlocks(payload),
         unfurl_links: false,
         unfurl_media: false,

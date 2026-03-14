@@ -1,7 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { generateDigest } from '@/lib/digest';
+import { postDigestToSlack } from '@/lib/slack';
 import type { DigestType } from '@/lib/db';
+
+function getAppUrl(): string {
+  return process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+}
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +20,7 @@ export async function POST(request: Request) {
 
     const result = await generateDigest(type);
 
-    // Store the digest
+    // 1. Save the digest first (so we get the ID for the report link)
     const { data, error } = await supabaseAdmin
       .from('weekly_digests')
       .insert({
@@ -25,9 +34,7 @@ export async function POST(request: Request) {
         industry_breakdown: result.industry_breakdown,
         model_used: result.model_used,
         tokens_used: result.tokens_used,
-        slack_posted: result.slack_posted,
-        slack_ts: result.slack_ts,
-        slack_error: result.slack_error,
+        slack_posted: false,
         digest_type: type,
         status: 'generated',
       })
@@ -36,9 +43,33 @@ export async function POST(request: Request) {
 
     if (error) throw error;
 
+    // 2. Post to Slack with the report URL (never throw)
+    const reportUrl = `${getAppUrl()}/digest/${data.id}`;
+    const slackResult = await postDigestToSlack({
+      weekLabel: result.period_end,
+      slackSummary: result.slack_summary,
+      eventCount: result.event_count,
+      industryNewsCount: result.industry_news_count,
+      competitorBreakdown: result.competitor_breakdown,
+      industryBreakdown: result.industry_breakdown,
+      reportUrl,
+    });
+
+    // 3. Update the digest row with Slack delivery status
+    if (slackResult.ok || slackResult.error) {
+      await supabaseAdmin
+        .from('weekly_digests')
+        .update({
+          slack_posted: slackResult.ok,
+          slack_ts: slackResult.ts || null,
+          slack_error: slackResult.ok ? null : (slackResult.error || null),
+        })
+        .eq('id', data.id);
+    }
+
     return NextResponse.json({
       success: true,
-      digest: data,
+      digest: { ...data, slack_posted: slackResult.ok, slack_ts: slackResult.ts || null },
     });
   } catch (error) {
     console.error('Error generating digest:', error);

@@ -1,23 +1,20 @@
 import fs from 'fs';
 import path from 'path';
 import { supabaseAdmin } from './supabase-admin';
-import { postDigestToSlack } from './slack';
 import type { DigestConfig, DigestType } from './db';
 
 export type { DigestType };
 
-interface DigestResult {
+export interface DigestResult {
   content: string;
   summary: string;
+  slack_summary: string;
   event_count: number;
   industry_news_count: number;
   competitor_breakdown: Record<string, number>;
   industry_breakdown: Record<string, number>;
   model_used: string;
   tokens_used: number | null;
-  slack_posted: boolean;
-  slack_ts: string | null;
-  slack_error: string | null;
   digest_type: DigestType;
   period_start: string;
   period_end: string;
@@ -66,6 +63,27 @@ export function extractSummary(content: string): string {
   }
 
   return summaryLines.join('\n').trim();
+}
+
+/**
+ * Extract the Slack Executive Summary section from digest content.
+ * Falls back to a trimmed version of the full summary if section not found.
+ */
+export function extractSlackSummary(content: string): string {
+  const marker = '## Slack Executive Summary';
+  const idx = content.indexOf(marker);
+  if (idx === -1) {
+    // Fallback: strip markdown from the regular summary
+    const fallback = extractSummary(content)
+      .replace(/^##\s+.*/gm, '')
+      .replace(/\*\*/g, '')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .trim();
+    return fallback.slice(0, 1200);
+  }
+
+  const sectionContent = content.slice(idx + marker.length).trim();
+  return sectionContent.slice(0, 1200);
 }
 
 /**
@@ -254,11 +272,20 @@ Major/Notable included in digest narrative: ${digestIndustryItems.length}
 ${industryText || 'No Major/Notable industry items found in the past 7 days.'}
 
 ## REQUIRED OUTPUT FORMAT
-Provide exactly two top-level markdown sections in this order:
+Provide exactly three top-level markdown sections in this order:
 1) ## Competitive Intel
 2) ## Industry News
+3) ## Slack Executive Summary
 
-Each section must be concise, executive-ready, and specific to SafelyYou actions/opportunities.`;
+The Competitive Intel and Industry News sections should be detailed, executive-ready, and specific to SafelyYou actions/opportunities.
+
+The Slack Executive Summary section is a SHORT plain-text summary (max 1200 characters) covering highlights from BOTH competitive intel and industry news. Rules for this section:
+- Use plain bullet points starting with the bullet character
+- NO markdown formatting (no **, no ##, no []() links)
+- Group bullets under two plain-text labels: "Competitive Intel" and "Industry News"
+- 3-5 bullets per group, each bullet max ~100 characters
+- Focus on the most actionable or notable items
+- End with one sentence on the overall takeaway`;
 
   // 8. Call OpenRouter API
   const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -299,32 +326,24 @@ Each section must be concise, executive-ready, and specific to SafelyYou actions
 
   if (!content) throw new Error('Empty response from AI model');
 
-  // 9. Attempt Slack post (never throw)
+  // 9. Extract the Slack summary, then strip that section from stored content
+  const slackSummary = extractSlackSummary(content);
+  const cleanContent = content.replace(/\n*## Slack Executive Summary[\s\S]*$/, '').trim();
+
+  // 10. Build result (Slack posting is handled by the route after DB save)
   const competitorBreakdown = buildBreakdown(typedEvents);
   const industryBreakdown = buildIndustryBreakdown(allIndustryItems);
 
-  const slackResult = await postDigestToSlack({
-    weekLabel: weekEnd,
-    digestContent: content,
-    eventCount: typedEvents.length,
-    industryNewsCount: digestIndustryItems.length,
-    competitorBreakdown,
-    industryBreakdown,
-  });
-
-  // 10. Build result
   return {
-    content,
-    summary: extractSummary(content),
+    content: cleanContent,
+    summary: extractSummary(cleanContent),
+    slack_summary: slackSummary,
     event_count: typedEvents.length,
     industry_news_count: digestIndustryItems.length,
     competitor_breakdown: competitorBreakdown,
     industry_breakdown: industryBreakdown,
     model_used: model,
     tokens_used: tokensUsed,
-    slack_posted: slackResult.ok,
-    slack_ts: slackResult.ts || null,
-    slack_error: slackResult.ok ? null : (slackResult.error || null),
     digest_type: type,
     period_start: weekStart,
     period_end: weekEnd,
