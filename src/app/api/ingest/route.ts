@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import crypto from 'crypto';
+import { scoreIndustryItem, loadIndustryContext as loadIndustryCtx } from '@/lib/industry-scoring';
 
 interface FeedItem {
   title: string;
@@ -300,15 +301,34 @@ export async function POST() {
 
     console.log(`Fetched ${allItems.length} total items`);
 
-    // Check for duplicates - batch hash checks to avoid Supabase .in() limits
-    const hashes = allItems.map(i => i.url_hash);
+    // Check for duplicates — split by category so each dedupes against its own table
+    const competitorItems = allItems.filter(i => i.category !== 'industry_news');
+    const industryItems = allItems.filter(i => i.category === 'industry_news');
     const BATCH_SIZE = 50;
     const existingHashes = new Set<string>();
 
-    for (let i = 0; i < hashes.length; i += BATCH_SIZE) {
-      const batchHashes = hashes.slice(i, i + BATCH_SIZE);
+    // Dedup competitor items against competitor_events
+    const competitorHashes = competitorItems.map(i => i.url_hash);
+    for (let i = 0; i < competitorHashes.length; i += BATCH_SIZE) {
+      const batchHashes = competitorHashes.slice(i, i + BATCH_SIZE);
       const { data: existing } = await supabaseAdmin
         .from('competitor_events')
+        .select('url_hash')
+        .in('url_hash', batchHashes);
+
+      if (existing) {
+        for (const e of existing) {
+          existingHashes.add(e.url_hash);
+        }
+      }
+    }
+
+    // Dedup industry items against industry_news
+    const industryHashes = industryItems.map(i => i.url_hash);
+    for (let i = 0; i < industryHashes.length; i += BATCH_SIZE) {
+      const batchHashes = industryHashes.slice(i, i + BATCH_SIZE);
+      const { data: existing } = await supabaseAdmin
+        .from('industry_news')
         .select('url_hash')
         .in('url_hash', batchHashes);
 
@@ -343,69 +363,96 @@ export async function POST() {
       critical: 0, high: 0, medium: 0, low: 0
     };
 
+    // Load industry context once before the loop
+    const industryContext = loadIndustryCtx();
+
     for (const item of newItems) {
       const isIndustryNews = item.category === 'industry_news';
 
-      // Score item — industry news uses its own prompt/model if configured
-      let scores: AIScores;
       if (isIndustryNews) {
-        if (industryPrompt) {
-          console.log(`Scoring industry: ${item.title.slice(0, 50)}...`);
-          scores = await scoreItem(item, industryPrompt, industryModel, apiKey, masterContext);
-          // Rate limit
-          await new Promise(resolve => setTimeout(resolve, 300));
-        } else {
-          // No industry prompt configured — use defaults
-          console.log(`Industry news (no prompt configured): ${item.title.slice(0, 50)}...`);
-          scores = {
-            theme: 'Thought Leadership',
-            threat_level: 1,
-            strategic_relevance: 1,
-            content_type_weight: 1,
-            priority_score: 1.0,
-            priority_tier: 'Low',
-            route_to: 'Monitor Only',
-            key_takeaway: `Industry news: ${item.title.slice(0, 200)}`,
-            auto_flag_triggers: '',
-          };
-        }
-      } else {
-        console.log(`Scoring: ${item.title.slice(0, 50)}...`);
-        scores = await scoreItem(item, systemPrompt, model, apiKey, masterContext);
+        // --- Industry news: score with shared module, insert into industry_news ---
+        console.log(`Scoring industry: ${item.title.slice(0, 50)}...`);
+        const indScores = await scoreIndustryItem(
+          {
+            title: item.title,
+            url: item.url,
+            summary: item.summary,
+            published_at: item.date,
+            source_name: item.feed_name,
+          },
+          industryContext,
+          industryModel,
+          apiKey,
+        );
         // Rate limit
         await new Promise(resolve => setTimeout(resolve, 300));
-      }
 
-      // Insert into database
-      const { error: insertError } = await supabaseAdmin
-        .from('competitor_events')
-        .insert({
-          url_hash: item.url_hash,
-          title: item.title,
-          url: item.url,
-          summary: item.summary,
-          published_at: item.date,
-          competitor_id: item.competitor_id,
-          feed_name: item.feed_name,
-          is_job_board: item.is_job_board,
-          category: item.category,
-          theme: scores.theme,
-          threat_level: scores.threat_level,
-          strategic_relevance: scores.strategic_relevance,
-          content_type_weight: scores.content_type_weight,
-          priority_score: scores.priority_score,
-          priority_tier: scores.priority_tier,
-          route_to: scores.route_to,
-          key_takeaway: scores.key_takeaway,
-          auto_flag_triggers: scores.auto_flag_triggers,
-        });
+        const { error: insertError } = await supabaseAdmin
+          .from('industry_news')
+          .insert({
+            url_hash: item.url_hash,
+            title: item.title,
+            url: item.url,
+            summary: item.summary,
+            published_at: item.date,
+            source_name: item.feed_name,
+            feed_url: null,
+            relevance_tier: indScores.relevance_tier,
+            relevance_summary: indScores.relevance_summary,
+            topics: indScores.topics,
+            mentioned_accounts: indScores.mentioned_accounts,
+          });
 
-      if (insertError) {
-        console.error('Insert error:', insertError);
+        if (insertError) {
+          console.error('Insert error (industry_news):', insertError);
+        } else {
+          processed++;
+          // Map industry tiers to results counters: Major→critical, Notable→high, Background→low
+          const tierMap: Record<string, keyof typeof results> = {
+            Major: 'critical',
+            Notable: 'high',
+            Background: 'low',
+          };
+          const key = tierMap[indScores.relevance_tier] || 'low';
+          results[key]++;
+        }
       } else {
-        processed++;
-        const tier = scores.priority_tier.toLowerCase() as keyof typeof results;
-        if (tier in results) results[tier]++;
+        // --- Competitor items: existing scoreItem + insert into competitor_events ---
+        console.log(`Scoring: ${item.title.slice(0, 50)}...`);
+        const scores = await scoreItem(item, systemPrompt, model, apiKey, masterContext);
+        // Rate limit
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        const { error: insertError } = await supabaseAdmin
+          .from('competitor_events')
+          .insert({
+            url_hash: item.url_hash,
+            title: item.title,
+            url: item.url,
+            summary: item.summary,
+            published_at: item.date,
+            competitor_id: item.competitor_id,
+            feed_name: item.feed_name,
+            is_job_board: item.is_job_board,
+            category: item.category,
+            theme: scores.theme,
+            threat_level: scores.threat_level,
+            strategic_relevance: scores.strategic_relevance,
+            content_type_weight: scores.content_type_weight,
+            priority_score: scores.priority_score,
+            priority_tier: scores.priority_tier,
+            route_to: scores.route_to,
+            key_takeaway: scores.key_takeaway,
+            auto_flag_triggers: scores.auto_flag_triggers,
+          });
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+        } else {
+          processed++;
+          const tier = scores.priority_tier.toLowerCase() as keyof typeof results;
+          if (tier in results) results[tier]++;
+        }
       }
 
     }
