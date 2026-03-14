@@ -50,7 +50,7 @@ export function loadIndustryContext(): string {
     return fs.readFileSync(filePath, 'utf-8');
   } catch {
     console.warn('[industry-scoring] SafelyYou_Industry_Context.md not found at', filePath);
-    return '';
+    return 'SafelyYou is an AI fall detection company focused on memory care and assisted living. Prioritize regulatory changes, REIT/operator moves, and customer-impacting developments.';
   }
 }
 
@@ -111,6 +111,7 @@ Summary: ${(item.summary || '').slice(0, 2000)}`;
         temperature: 0.1,
         max_tokens: 600,
       }),
+      signal: AbortSignal.timeout(45_000),
     });
 
     if (!resp.ok) {
