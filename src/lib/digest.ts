@@ -70,20 +70,31 @@ export function extractSummary(content: string): string {
  * Falls back to a trimmed version of the full summary if section not found.
  */
 export function extractSlackSummary(content: string): string {
-  const marker = '## Slack Executive Summary';
-  const idx = content.indexOf(marker);
-  if (idx === -1) {
-    // Fallback: strip markdown from the regular summary
-    const fallback = extractSummary(content)
-      .replace(/^##\s+.*/gm, '')
-      .replace(/\*\*/g, '')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .trim();
-    return fallback.slice(0, 2985);
+  // Try multiple patterns for the Slack section heading
+  const patterns = [
+    /^##\s+Slack Executive Summary\b/im,
+    /^##\s+Slack\s+Summary\b/im,
+    /^##\s+Executive Summary\b/im,
+  ];
+
+  for (const pattern of patterns) {
+    const match = content.match(pattern);
+    if (match && match.index !== undefined) {
+      const sectionContent = content.slice(match.index + match[0].length).trim();
+      return sectionContent.slice(0, 2985);
+    }
   }
 
-  const sectionContent = content.slice(idx + marker.length).trim();
-  return sectionContent.slice(0, 2985);
+  // Fallback: strip markdown formatting for Slack compatibility
+  const fallback = extractSummary(content)
+    .replace(/^#{1,4}\s+.*/gm, '')       // strip all heading levels
+    .replace(/\*\*(.+?)\*\*/g, '*$1*')   // convert **bold** to *bold* for Slack
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<$2|$1>') // convert [text](url) to <url|text>
+    .replace(/^\s*\|.*\|$/gm, '')        // strip markdown tables
+    .replace(/^\s*[-|:]+\s*$/gm, '')     // strip table separators
+    .replace(/\n{3,}/g, '\n\n')          // collapse excess newlines
+    .trim();
+  return fallback.slice(0, 2985);
 }
 
 /**
@@ -291,66 +302,75 @@ export async function generateDigest(type: DigestType = 'weekly', configOverride
     ? `\n\nCurrent Focus Areas: ${config.focus_areas.join(', ')}`
     : '';
 
-  const userMessage = `${config.system_prompt || 'Generate an executive weekly intelligence brief.'}
+  const userMessage = `MANDATORY: Your response MUST contain EXACTLY three sections with these EXACT headings (copy-paste these headings verbatim):
+
+## Competitive Intel
+## Industry News
+## Slack Executive Summary
+
+Do NOT rename, reword, or rearrange these headings. Do NOT use "7-Day Summary", "Key Trends", or any other heading names. The system parses these exact strings to display the report. Wrong headings = broken output.
+
+---
+
+${config.system_prompt || 'Generate an executive weekly intelligence brief.'}
 ${focusAreasText}
 
-## SAFELYOU MASTER CONTEXT:
+SAFELYOU MASTER CONTEXT:
 ${masterContext}
 
-## SAFELYOU INDUSTRY CONTEXT:
+SAFELYOU INDUSTRY CONTEXT:
 ${industryContext}
 ${previousDigestSummary}
 
-## THIS WEEK'S COMPETITOR EVENTS (${weekStart} to ${weekEnd}):
+THIS WEEK'S COMPETITOR EVENTS (${weekStart} to ${weekEnd}):
 Total events: ${typedEvents.length}
 
 ${eventsText || 'No events found in the past 7 days.'}
 
-## THIS WEEK'S INDUSTRY NEWS (${weekStart} to ${weekEnd}):
+THIS WEEK'S INDUSTRY NEWS (${weekStart} to ${weekEnd}):
 Total industry items (all tiers): ${allIndustryItems.length}
 Major/Notable included in digest narrative: ${digestIndustryItems.length}
 
 ${industryText || 'No Major/Notable industry items found in the past 7 days.'}
 
-## REQUIRED OUTPUT FORMAT
-Provide exactly three top-level markdown sections in this order:
-1) ## Competitive Intel
-2) ## Industry News
-3) ## Slack Executive Summary
+---
 
-The Competitive Intel and Industry News sections should be detailed, executive-ready, and specific to SafelyYou actions/opportunities.
+OUTPUT RULES (these are non-negotiable):
 
-The Slack Executive Summary section (max 2985 characters) covers highlights from BOTH competitive intel and industry news. This section is posted directly into a Slack channel via the Slack API. You MUST use Slack mrkdwn — NOT standard markdown.
+SECTION 1: ## Competitive Intel
+- Use standard markdown (### subheadings, **bold**, tables, bullet points are all fine)
+- Detailed, executive-ready analysis specific to SafelyYou
+- Include week-over-week comparison if previous digest data is available
+- Name specific competitors, products, actions, and numbers
 
-CRITICAL FORMATTING RULES — VIOLATING THESE BREAKS THE OUTPUT:
-- NEVER use # or ## or ### headings. Slack does NOT render markdown headings. They show as literal "#" characters.
-- NEVER use ** for bold. Slack uses *single asterisks* for bold.
-- NEVER use standard markdown links [text](url). Slack uses <url|text> format.
-- NEVER use numbered lists (1. 2. 3.). Use emoji bullets only.
-- NEVER use standard bullet points (- or *). Use colored circle emojis as bullets.
+SECTION 2: ## Industry News
+- Use standard markdown (### subheadings, **bold**, bullet points are all fine)
+- Analyze the ${digestIndustryItems.length} Major/Notable industry items provided above
+- Group by theme (regulatory, M&A, technology, workforce, etc.)
+- Explain SafelyYou relevance and recommended actions for each
 
-Allowed Slack mrkdwn:
-- *bold text* (single asterisks only)
-- _italic text_ (underscores)
-- ~strikethrough~ (tildes)
-- > blockquote (for key takeaways)
-- \`inline code\` for standout metrics
-
-Structure:
-- Start with *\ud83c\udfaf Competitive Intel* on its own line (bold with single asterisks)
-- Each bullet starts with a colored circle emoji indicating importance:
+SECTION 3: ## Slack Executive Summary
+- This section is posted DIRECTLY into Slack via the API. It uses Slack mrkdwn, NOT standard markdown.
+- Max 2985 characters
+- NEVER use # ## ### headings (Slack renders them as literal "#" text)
+- NEVER use **double asterisks** for bold (Slack uses *single asterisks*)
+- NEVER use [text](url) links (Slack uses <url|text>)
+- NEVER use numbered lists or standard bullet points (- or *)
+- Use colored circle emojis as bullets:
   \ud83d\udd34 = high importance / threat / urgent
   \ud83d\udfe1 = moderate importance / watch / notable
   \ud83d\udfe2 = opportunity / positive / good news
-- Then a section starting with *\ud83d\udcf0 Industry News* on its own line
-- Same colored circle emoji bullets for industry items
-- End with a *\ud83d\udca1 Bottom Line* on its own line: 1-2 sentences on the strategic takeaway
-
-Content rules:
-- Be concise and substantive. Include only actionable intelligence — no filler, no padding
+- Structure:
+  *\ud83c\udfaf Competitive Intel* (bold with single asterisks, on its own line)
+  emoji bullets for competitive items (3-6 bullets)
+  *\ud83d\udcf0 Industry News* (bold with single asterisks, on its own line)
+  emoji bullets for industry items (3-6 bullets)
+  *\ud83d\udca1 Bottom Line* (bold with single asterisks, on its own line)
+  1-2 sentences strategic takeaway
+- Be concise. No filler. Only actionable intelligence.
 - Bold competitor names and key terms with *single asterisks*
-- Each bullet should name specific companies, numbers, or actions
-- 3-6 bullets per group — quality over quantity`;
+
+REMINDER: Start your response with "## Competitive Intel" — not a date, not a title, not a summary.`;
 
   // 8. Call OpenRouter API
   const apiKey = process.env.OPENROUTER_API_KEY || '';
@@ -403,7 +423,11 @@ Content rules:
 
   // 9. Extract the Slack summary, then strip that section from stored content
   const slackSummary = extractSlackSummary(content);
-  const cleanContent = content.replace(/\n*## Slack Executive Summary[\s\S]*$/, '').trim();
+  // Strip the Slack section from stored content (try multiple heading patterns)
+  const cleanContent = content
+    .replace(/\n*##\s+(?:Slack\s+)?Executive Summary[\s\S]*$/i, '')
+    .replace(/\n*##\s+Slack\s+Summary[\s\S]*$/i, '')
+    .trim();
 
   // 10. Build result (Slack posting is handled by the route after DB save)
   const competitorBreakdown = buildBreakdown(typedEvents);

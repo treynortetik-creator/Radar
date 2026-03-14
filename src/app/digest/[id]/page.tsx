@@ -19,10 +19,41 @@ function splitDigestSections(content: string): {
   competitive: string;
   industry: string;
 } {
-  const compMatch = content.match(/^##\s+Competitive Intel\b/im);
-  const industryMatch = content.match(/^##\s+Industry News\b/im);
+  // Try multiple heading patterns for each section (AI models sometimes rename them)
+  const compPatterns = [
+    /^##\s+Competitive Intel\b/im,
+    /^##\s+Competitive Intelligence\b/im,
+    /^##\s+Competitor\b/im,
+    /^##\s+7-Day Summary\b/im,
+  ];
+  const industryPatterns = [
+    /^##\s+Industry News\b/im,
+    /^##\s+Industry\b/im,
+    /^##\s+Industry Analysis\b/im,
+    /^##\s+Industry Trends\b/im,
+  ];
+
+  let compMatch: RegExpMatchArray | null = null;
+  for (const p of compPatterns) {
+    compMatch = content.match(p);
+    if (compMatch) break;
+  }
+
+  let industryMatch: RegExpMatchArray | null = null;
+  for (const p of industryPatterns) {
+    industryMatch = content.match(p);
+    if (industryMatch) break;
+  }
 
   if (!compMatch || !industryMatch || compMatch.index === undefined || industryMatch.index === undefined) {
+    // Last resort: if we found competitive but not industry, split at the competitive section
+    if (compMatch && compMatch.index !== undefined) {
+      return {
+        intro: content.slice(0, compMatch.index).trim(),
+        competitive: content.slice(compMatch.index).trim(),
+        industry: '',
+      };
+    }
     return { intro: '', competitive: content, industry: '' };
   }
 
