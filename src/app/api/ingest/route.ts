@@ -241,7 +241,6 @@ export async function POST() {
     const systemPrompt = config.system_prompt || '';
     const apiKey = process.env.OPENROUTER_API_KEY || '';
     const industryModel = config.industry_openrouter_model || model; // fallback to competitor model
-    const industryPrompt = config.industry_system_prompt || '';
     const masterContext = config.master_context || '';
 
     if (!systemPrompt) {
