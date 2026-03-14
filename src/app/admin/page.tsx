@@ -92,6 +92,7 @@ export default function AdminPage() {
   const [digestPeriod, setDigestPeriod] = useState<'weekly' | 'monthly' | '90day' | '180day'>('weekly');
   const [digestConfig, setDigestConfig] = useState<DigestConfig | null>(null);
   const [digestPrompt, setDigestPrompt] = useState('');
+  const [digestSlackPrompt, setDigestSlackPrompt] = useState('');
   const [digestModel, setDigestModel] = useState('google/gemini-2.0-flash-001');
   const [digestFocusAreas, setDigestFocusAreas] = useState<string[]>([]);
   const [digestDeliveryDay, setDigestDeliveryDay] = useState(0);
@@ -191,6 +192,7 @@ export default function AdminPage() {
       if (data.config) {
         setDigestConfig(data.config);
         setDigestPrompt(data.config.system_prompt || '');
+        setDigestSlackPrompt(data.config.slack_prompt || '');
         setDigestModel(data.config.model || 'google/gemini-2.0-flash-001');
         setDigestFocusAreas(data.config.focus_areas || []);
         setDigestDeliveryDay(data.config.delivery_day ?? 0);
@@ -200,6 +202,7 @@ export default function AdminPage() {
       } else {
         setDigestConfig(null);
         setDigestPrompt('');
+        setDigestSlackPrompt('');
         setDigestModel('google/gemini-2.0-flash-001');
         setDigestFocusAreas([]);
         setDigestDeliveryDay(0);
@@ -323,6 +326,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           id: digestConfig.id,
           system_prompt: digestPrompt,
+          slack_prompt: digestSlackPrompt,
           model: digestModel,
           focus_areas: digestFocusAreas,
           delivery_day: digestDeliveryDay,
@@ -1080,6 +1084,31 @@ export default function AdminPage() {
               className="input-base font-mono text-sm resize-y min-h-[200px]"
               placeholder="Enter digest system prompt..."
             />
+          </CollapsibleSection>
+
+          {/* Slack Output Prompt */}
+          <CollapsibleSection
+            title="Slack Output Prompt"
+            subtitle="Controls the format and content of the Slack channel post — leave empty to use default"
+            storageKey="digest-slack-prompt"
+            defaultOpen={false}
+            headerRight={<span className="text-xs text-slate-500 font-mono">{digestSlackPrompt.length > 0 ? `${digestSlackPrompt.length.toLocaleString()} chars` : 'using default'}</span>}
+          >
+            <textarea
+              value={digestSlackPrompt}
+              onChange={(e) => setDigestSlackPrompt(e.target.value)}
+              rows={18}
+              className="input-base font-mono text-sm resize-y min-h-[200px]"
+              placeholder="Leave empty to use the built-in default Slack prompt. Paste your custom Slack formatting instructions here to override.&#10;&#10;Available variables: {report_url}&#10;&#10;Use Slack mrkdwn syntax: *bold*, _italic_, :emoji_name:, • for bullets"
+            />
+            {digestSlackPrompt.length > 0 && (
+              <button
+                onClick={() => setDigestSlackPrompt('')}
+                className="mt-2 text-xs text-slate-500 hover:text-red-400 transition-colors"
+              >
+                Reset to default prompt
+              </button>
+            )}
           </CollapsibleSection>
 
           {/* Focus Areas */}

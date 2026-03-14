@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, system_prompt, focus_areas, output_format, delivery_day, delivery_day_of_month, delivery_hour, model, reasoning_effort, is_active } = body;
+    const { id, system_prompt, slack_prompt, focus_areas, output_format, delivery_day, delivery_day_of_month, delivery_hour, model, reasoning_effort, is_active } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Config ID required' }, { status: 400 });
@@ -36,6 +36,7 @@ export async function PUT(request: Request) {
 
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (system_prompt !== undefined) updates.system_prompt = system_prompt;
+    if (slack_prompt !== undefined) updates.slack_prompt = slack_prompt;
     if (focus_areas !== undefined) updates.focus_areas = focus_areas;
     if (output_format !== undefined) updates.output_format = output_format;
     if (delivery_day !== undefined) updates.delivery_day = delivery_day;

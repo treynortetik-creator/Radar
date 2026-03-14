@@ -172,6 +172,7 @@ export type DigestType = 'weekly' | 'monthly' | '90day' | '180day';
 export interface DigestConfig {
   id: number;
   system_prompt: string;
+  slack_prompt: string;
   focus_areas: string[] | null;
   output_format: string;
   delivery_day: number;

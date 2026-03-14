@@ -5,6 +5,47 @@ import type { DigestConfig, DigestType } from './db';
 
 export type { DigestType };
 
+export const DEFAULT_SLACK_PROMPT = `ABSOLUTE PROHIBITIONS — the output is BROKEN if you include ANY of these:
+- # ## ### headings — Slack shows literal "#" characters
+- **double asterisks** — Slack uses *single asterisks* for bold
+- [text](url) links — Slack uses <url|text> format
+- Numbered lists (1. 2. 3.)
+- Standard bullet points (- or *)
+- "Counter-points", "SafelyYou Counter", "Our response", or any defensive analysis
+- "Recommended Action", "Suggested Action", "Next Steps", or ANY recommendations
+- "Specifics:" sub-sections or multi-paragraph analysis per item
+- Week-over-week tables or comparison data
+
+WHAT TO WRITE:
+- One-line bullets only. Each bullet = one fact: who did what + one specific number/claim/detail.
+- 2-3 bullets per category. No more.
+- Use • (bullet character) for every bullet.
+- Keep the TOTAL output under 1500 characters. The example below is the target length.
+
+COPY THIS STRUCTURE EXACTLY (replace bracketed content with real intel):
+
+:rotating_light: Weekly Marketing Intelligence Report - [date]
+
+*:red_circle: IMMEDIATE THREATS:*
+• [Competitor] [specific claim or action] — [one key detail]
+• [Competitor] [specific claim or action] — [one key detail]
+
+*:large_yellow_circle: COMPETITIVE ESCALATION:*
+• [Competitor] [specific move] — [one key detail]
+• [Competitor] [specific move] — [one key detail]
+• [Competitor] [specific move] — [one key detail]
+
+*:large_green_circle: STRATEGIC OPPORTUNITIES:*
+• [Market signal or competitor gap] — [one key detail]
+• [Market signal or competitor gap] — [one key detail]
+
+*:newspaper: INDUSTRY MOVES:*
+• [Industry development] — [one key detail]
+• [Industry development] — [one key detail]
+
+:bar_chart: Full Report: {report_url}
+Data Period: [start] to [end] | Events: [count] | Industry: [count]`;
+
 export interface DigestResult {
   content: string;
   summary: string;
@@ -351,71 +392,15 @@ SECTION 2: ## Industry News
 
 SECTION 3: ## Slack Executive Summary
 This section is posted DIRECTLY into Slack. It uses Slack mrkdwn, NOT standard markdown.
+The following instructions control the Slack output format and content:
 
-ABSOLUTE PROHIBITIONS — the output is BROKEN if you include ANY of these:
-- # ## ### headings — Slack shows literal "#" characters
-- **double asterisks** — Slack uses *single asterisks* for bold
-- [text](url) links — Slack uses <url|text> format
-- Numbered lists (1. 2. 3.)
-- Standard bullet points (- or *)
-- "Counter-points", "SafelyYou Counter", "Our response", or any defensive analysis
-- "Recommended Action", "Suggested Action", "Next Steps", or ANY recommendations
-- "Specifics:" sub-sections or multi-paragraph analysis per item
-- Week-over-week tables or comparison data
+${config.slack_prompt || DEFAULT_SLACK_PROMPT}
 
-WHAT TO WRITE:
-- One-line bullets only. Each bullet = one fact: who did what + one specific number/claim/detail.
-- 2-3 bullets per category. No more.
-- Use \u2022 (bullet character) for every bullet.
-- Keep the TOTAL output under 1500 characters. The example below is the target length.
-
-COPY THIS STRUCTURE EXACTLY (replace bracketed content with real intel):
-
-:rotating_light: Weekly Marketing Intelligence Report - ${weekEnd}
-
-*:red_circle: IMMEDIATE THREATS:*
-\u2022 [Competitor] [specific claim or action] — [one key detail]
-\u2022 [Competitor] [specific claim or action] — [one key detail]
-
-*:large_yellow_circle: COMPETITIVE ESCALATION:*
-\u2022 [Competitor] [specific move] — [one key detail]
-\u2022 [Competitor] [specific move] — [one key detail]
-\u2022 [Competitor] [specific move] — [one key detail]
-
-*:large_green_circle: STRATEGIC OPPORTUNITIES:*
-\u2022 [Market signal or competitor gap] — [one key detail]
-\u2022 [Market signal or competitor gap] — [one key detail]
-
-*:newspaper: INDUSTRY MOVES:*
-\u2022 [Industry development] — [one key detail]
-\u2022 [Industry development] — [one key detail]
-
-:bar_chart: Full Report: {report_url}
-Data Period: ${weekStart} to ${weekEnd} | Events: ${typedEvents.length} | Industry: ${allIndustryItems.length}
-
-EXAMPLE OUTPUT (match this length and tone exactly — this is ~1200 characters):
-
-:rotating_light: Weekly Marketing Intelligence Report - 01/19/2026
-
-*:red_circle: IMMEDIATE THREATS:*
-\u2022 VirtuSense claiming 95% false alarm reduction — directly challenges our accuracy positioning
-\u2022 CarePredict announcing "industry's first unified fall detection" with Kami Vision partnership
-
-*:large_yellow_circle: COMPETITIVE ESCALATION:*
-\u2022 Inspiren founder featured in Forbes on AI adoption in senior living — positioning as thought leader
-\u2022 Inspiren scaling: hiring Implementation Manager ($150-170K) + Staff Embedded Systems Engineer
-\u2022 Essence Group launching AI-driven behavioral analysis — new entrant in our space
-
-*:large_green_circle: STRATEGIC OPPORTUNITIES:*
-\u2022 Competitors avoiding direct safety competition, focusing on wellness (Nobi circadian lighting)
-\u2022 Partnership strategies emerging (CarePredict + Kami) — native platform is a differentiator
-
-*:newspaper: INDUSTRY MOVES:*
-\u2022 Sage expanding to ASHA conference — geographic/market expansion signal
-\u2022 Senior living occupancy hits 87.2% per NIC data — demand environment strengthening
-
-:bar_chart: Full Report: https://example.com/digest/21
-Data Period: Jan 13-19, 2026 | Events: 15 | Industry: 8
+Use these variables in your output (they will be replaced automatically):
+- {report_url} — link to the full report
+- Date range: ${weekStart} to ${weekEnd}
+- Events tracked: ${typedEvents.length}
+- Industry items: ${allIndustryItems.length}
 
 REMINDER: Start your response with "## Competitive Intel" — not a date, not a title, not a summary.`;
 
