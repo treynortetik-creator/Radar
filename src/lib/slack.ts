@@ -26,26 +26,9 @@ function formatBreakdown(breakdown: Record<string, number>): string {
   return rows.map(([key, count]) => `${key}: ${count}`).join('  |  ');
 }
 
-/**
- * Convert the plain-text executive summary into Slack mrkdwn.
- * Bolds group labels (lines ending with colon) and preserves bullet structure.
- */
-function toSlackMrkdwn(summary: string): string {
-  return summary
-    .split('\n')
-    .map((line) => {
-      const trimmed = line.trim();
-      // Bold group labels like "Competitive Intel:" or "Industry News:"
-      if (/^[A-Z][\w\s/]+:$/i.test(trimmed)) {
-        return `*${trimmed}*`;
-      }
-      return trimmed;
-    })
-    .join('\n');
-}
-
 function buildBlocks(payload: SlackDigestPayload): unknown[] {
-  const summaryMrkdwn = clip(toSlackMrkdwn(payload.slackSummary), 2000);
+  // AI already outputs Slack mrkdwn — just clip to stay within block limit
+  const summaryMrkdwn = clip(payload.slackSummary, 2985);
 
   return [
     {
@@ -101,7 +84,7 @@ export async function postDigestToSlack(payload: SlackDigestPayload): Promise<Sl
 
   try {
     // Fallback text for notifications (plain text, no blocks)
-    const fallbackText = `SafelyYou Intel Digest — Week of ${payload.weekLabel}\n${clip(payload.slackSummary, 2500)}\n${payload.reportUrl}`;
+    const fallbackText = `SafelyYou Intel Digest — Week of ${payload.weekLabel}\n${clip(payload.slackSummary, 2900)}\n${payload.reportUrl}`;
 
     const response = await fetch('https://slack.com/api/chat.postMessage', {
       method: 'POST',

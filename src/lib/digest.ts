@@ -79,11 +79,11 @@ export function extractSlackSummary(content: string): string {
       .replace(/\*\*/g, '')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .trim();
-    return fallback.slice(0, 1200);
+    return fallback.slice(0, 2985);
   }
 
   const sectionContent = content.slice(idx + marker.length).trim();
-  return sectionContent.slice(0, 1200);
+  return sectionContent.slice(0, 2985);
 }
 
 /**
@@ -279,13 +279,25 @@ Provide exactly three top-level markdown sections in this order:
 
 The Competitive Intel and Industry News sections should be detailed, executive-ready, and specific to SafelyYou actions/opportunities.
 
-The Slack Executive Summary section is a SHORT plain-text summary (max 1200 characters) covering highlights from BOTH competitive intel and industry news. Rules for this section:
-- Use emoji bullet points (e.g. \ud83d\udd34 for threats, \ud83d\udfe2 for opportunities, \ud83d\udca1 for insights, \u26a0\ufe0f for warnings, \ud83d\ude80 for launches, \ud83d\udcb0 for funding, \ud83e\udd1d for partnerships)
-- NO markdown formatting (no **, no ##, no []() links)
-- Group bullets under two labels with emojis: "\ud83c\udfaf Competitive Intel:" and "\ud83d\udcf0 Industry News:"
-- 3-5 bullets per group, each bullet max ~100 characters
-- Focus on the most actionable or notable items
-- End with one sentence overall takeaway prefixed with \ud83d\udca1`;
+The Slack Executive Summary section is a detailed executive summary (max 2985 characters) covering highlights from BOTH competitive intel and industry news. This section is posted directly into Slack, so use Slack mrkdwn formatting:
+
+Slack mrkdwn rules (NOT standard markdown):
+- *bold text* (single asterisks, NOT double)
+- _italic text_ (underscores)
+- ~strikethrough~ (tildes)
+- > blockquote (for callouts or key takeaways)
+- \`inline code\` for metrics or numbers you want to stand out
+- Bullet points using the bullet character or dashes
+- DO NOT use ## headings (Slack does not render them)
+- DO NOT use [text](url) links (Slack uses <url|text> format)
+
+Content rules:
+- Start each group with an emoji label on its own line: *\ud83c\udfaf Competitive Intel* and *\ud83d\udcf0 Industry News*
+- Use emoji bullet points (e.g. \ud83d\udd34 threats, \ud83d\udfe2 opportunities, \ud83d\udca1 insights, \u26a0\ufe0f warnings, \ud83d\ude80 launches, \ud83d\udcb0 funding, \ud83e\udd1d partnerships)
+- 4-8 bullets per group with enough detail to be actionable (company names, specifics, implications)
+- Bold competitor names and key terms with *single asterisks*
+- After both groups, include a *\ud83d\udca1 Bottom Line* section with 1-2 sentences on the overall strategic takeaway
+- Use the full 2985 characters to provide meaningful detail — do not be overly terse`;
 
   // 8. Call OpenRouter API
   const apiKey = process.env.OPENROUTER_API_KEY || '';
