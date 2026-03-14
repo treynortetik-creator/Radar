@@ -27,30 +27,40 @@ function formatBreakdown(breakdown: Record<string, number>): string {
 }
 
 function buildBlocks(payload: SlackDigestPayload): unknown[] {
-  // AI already outputs Slack mrkdwn — just clip to stay within block limit
-  const summaryMrkdwn = clip(payload.slackSummary, 2985);
+  // Guard: Slack section text must be 1-3000 chars
+  const rawSummary = (payload.slackSummary || '').trim();
+  const summaryMrkdwn = rawSummary
+    ? clip(rawSummary, 3000)
+    : 'No executive summary available for this period.';
+
+  // Guard: Slack header text max 150 chars
+  const headerText = clip(`\ud83d\udce1 SafelyYou Intel Digest \u2014 Week of ${payload.weekLabel}`, 150);
+
+  // Guard: Slack section field text max 2000 chars
+  const competitorField = clip(formatBreakdown(payload.competitorBreakdown || {}), 2000);
+  const industryField = clip(formatBreakdown(payload.industryBreakdown || {}), 2000);
 
   return [
     {
       type: 'header',
       text: {
         type: 'plain_text',
-        text: `\ud83d\udce1 SafelyYou Intel Digest \u2014 Week of ${payload.weekLabel}`,
+        text: headerText,
         emoji: true,
       },
     },
     {
       type: 'section',
       fields: [
-        { type: 'mrkdwn', text: `\ud83c\udfaf *Competitor Events*\n${payload.eventCount}` },
-        { type: 'mrkdwn', text: `\ud83d\udcf0 *Industry News*\n${payload.industryNewsCount}` },
+        { type: 'mrkdwn', text: `\ud83c\udfaf *Competitor Events*\n${payload.eventCount ?? 0}` },
+        { type: 'mrkdwn', text: `\ud83d\udcf0 *Industry News*\n${payload.industryNewsCount ?? 0}` },
       ],
     },
     {
       type: 'section',
       fields: [
-        { type: 'mrkdwn', text: `\ud83c\udfc6 *Competitors*\n${clip(formatBreakdown(payload.competitorBreakdown), 500)}` },
-        { type: 'mrkdwn', text: `\ud83d\udcca *By Tier*\n${clip(formatBreakdown(payload.industryBreakdown), 500)}` },
+        { type: 'mrkdwn', text: `\ud83c\udfc6 *Competitors*\n${competitorField}` },
+        { type: 'mrkdwn', text: `\ud83d\udcca *By Tier*\n${industryField}` },
       ],
     },
     { type: 'divider' },
@@ -101,10 +111,16 @@ export async function postDigestToSlack(payload: SlackDigestPayload): Promise<Sl
       }),
     });
 
-    const data = (await response.json()) as { ok?: boolean; error?: string; ts?: string };
+    const data = (await response.json()) as {
+      ok?: boolean; error?: string; ts?: string;
+      response_metadata?: { messages?: string[] };
+    };
     if (!response.ok || !data.ok) {
       const error = data.error || `HTTP ${response.status}`;
       console.error('[Slack] Failed to post digest:', error);
+      if (data.response_metadata?.messages) {
+        console.error('[Slack] Block validation details:', JSON.stringify(data.response_metadata.messages));
+      }
       return { ok: false, error };
     }
 
