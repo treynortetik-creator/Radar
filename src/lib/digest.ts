@@ -196,7 +196,9 @@ export async function generateDigest(type: DigestType = 'weekly', configOverride
   if (eventsError) throw new Error(`Failed to fetch events: ${eventsError.message}`);
   const typedEvents = (events || []) as unknown as EventRow[];
 
-  // 3. Fetch industry items from past 7 days
+  // 3. Fetch industry items from past N days
+  //    Primary source: industry_news table (populated by ingest_industry.py)
+  //    Fallback: competitor_events with category='industry_news' (populated by TS ingest)
   const { data: industryData, error: industryError } = await supabaseAdmin
     .from('industry_news')
     .select('id, title, url, summary, published_at, source_name, relevance_tier, relevance_summary')
@@ -206,7 +208,46 @@ export async function generateDigest(type: DigestType = 'weekly', configOverride
 
   if (industryError) throw new Error(`Failed to fetch industry news: ${industryError.message}`);
 
-  const allIndustryItems = (industryData || []) as IndustryRow[];
+  let allIndustryItems = (industryData || []) as IndustryRow[];
+
+  // Fallback: if industry_news table is empty, pull from competitor_events
+  if (allIndustryItems.length === 0) {
+    const { data: fallbackData, error: fallbackError } = await supabaseAdmin
+      .from('competitor_events')
+      .select('id, title, url, summary, published_at, feed_name, priority_tier, key_takeaway')
+      .eq('category', 'industry_news')
+      .gte('published_at', rangeStart.toISOString())
+      .order('priority_score', { ascending: false })
+      .limit(80);
+
+    if (!fallbackError && fallbackData && fallbackData.length > 0) {
+      console.log(`[Digest] industry_news table empty, using ${fallbackData.length} items from competitor_events`);
+      // Map competitor_events fields to IndustryRow shape
+      allIndustryItems = (fallbackData as unknown as {
+        id: number; title: string; url: string; summary: string | null;
+        published_at: string | null; feed_name: string;
+        priority_tier: string | null; key_takeaway: string | null;
+      }[]).map((row) => {
+        // Map priority_tier → relevance_tier
+        let relevance_tier: 'Major' | 'Notable' | 'Background' = 'Background';
+        const tier = (row.priority_tier || '').toLowerCase();
+        if (tier === 'critical' || tier === 'high') relevance_tier = 'Major';
+        else if (tier === 'medium') relevance_tier = 'Notable';
+
+        return {
+          id: row.id,
+          title: row.title,
+          url: row.url,
+          summary: row.summary,
+          published_at: row.published_at,
+          source_name: row.feed_name || 'Industry Feed',
+          relevance_tier,
+          relevance_summary: row.key_takeaway,
+        } as IndustryRow;
+      });
+    }
+  }
+
   const digestIndustryItems = allIndustryItems.filter(
     (item) => item.relevance_tier === 'Major' || item.relevance_tier === 'Notable',
   );
@@ -279,25 +320,37 @@ Provide exactly three top-level markdown sections in this order:
 
 The Competitive Intel and Industry News sections should be detailed, executive-ready, and specific to SafelyYou actions/opportunities.
 
-The Slack Executive Summary section is a detailed executive summary (max 2985 characters) covering highlights from BOTH competitive intel and industry news. This section is posted directly into Slack, so use Slack mrkdwn formatting:
+The Slack Executive Summary section (max 2985 characters) covers highlights from BOTH competitive intel and industry news. This section is posted directly into a Slack channel via the Slack API. You MUST use Slack mrkdwn — NOT standard markdown.
 
-Slack mrkdwn rules (NOT standard markdown):
-- *bold text* (single asterisks, NOT double)
+CRITICAL FORMATTING RULES — VIOLATING THESE BREAKS THE OUTPUT:
+- NEVER use # or ## or ### headings. Slack does NOT render markdown headings. They show as literal "#" characters.
+- NEVER use ** for bold. Slack uses *single asterisks* for bold.
+- NEVER use standard markdown links [text](url). Slack uses <url|text> format.
+- NEVER use numbered lists (1. 2. 3.). Use emoji bullets only.
+- NEVER use standard bullet points (- or *). Use colored circle emojis as bullets.
+
+Allowed Slack mrkdwn:
+- *bold text* (single asterisks only)
 - _italic text_ (underscores)
 - ~strikethrough~ (tildes)
-- > blockquote (for callouts or key takeaways)
-- \`inline code\` for metrics or numbers you want to stand out
-- Bullet points using the bullet character or dashes
-- DO NOT use ## headings (Slack does not render them)
-- DO NOT use [text](url) links (Slack uses <url|text> format)
+- > blockquote (for key takeaways)
+- \`inline code\` for standout metrics
+
+Structure:
+- Start with *\ud83c\udfaf Competitive Intel* on its own line (bold with single asterisks)
+- Each bullet starts with a colored circle emoji indicating importance:
+  \ud83d\udd34 = high importance / threat / urgent
+  \ud83d\udfe1 = moderate importance / watch / notable
+  \ud83d\udfe2 = opportunity / positive / good news
+- Then a section starting with *\ud83d\udcf0 Industry News* on its own line
+- Same colored circle emoji bullets for industry items
+- End with a *\ud83d\udca1 Bottom Line* on its own line: 1-2 sentences on the strategic takeaway
 
 Content rules:
-- Start each group with an emoji label on its own line: *\ud83c\udfaf Competitive Intel* and *\ud83d\udcf0 Industry News*
-- Use emoji bullet points (e.g. \ud83d\udd34 threats, \ud83d\udfe2 opportunities, \ud83d\udca1 insights, \u26a0\ufe0f warnings, \ud83d\ude80 launches, \ud83d\udcb0 funding, \ud83e\udd1d partnerships)
-- 4-8 bullets per group with enough detail to be actionable (company names, specifics, implications)
+- Be concise and substantive. Include only actionable intelligence — no filler, no padding
 - Bold competitor names and key terms with *single asterisks*
-- After both groups, include a *\ud83d\udca1 Bottom Line* section with 1-2 sentences on the overall strategic takeaway
-- Use the full 2985 characters to provide meaningful detail — do not be overly terse`;
+- Each bullet should name specific companies, numbers, or actions
+- 3-6 bullets per group — quality over quantity`;
 
   // 8. Call OpenRouter API
   const apiKey = process.env.OPENROUTER_API_KEY || '';
