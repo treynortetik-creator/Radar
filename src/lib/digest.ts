@@ -350,47 +350,51 @@ SECTION 2: ## Industry News
 - Explain SafelyYou relevance and recommended actions for each
 
 SECTION 3: ## Slack Executive Summary
-- This section is posted DIRECTLY into Slack via the API. It uses Slack mrkdwn, NOT standard markdown.
-- Max 2985 characters. Match the length and density of the example below — do not pad.
+This section is posted DIRECTLY into Slack. It uses Slack mrkdwn, NOT standard markdown.
 
-FORMATTING RULES (violating these breaks Slack rendering):
-- NEVER use # ## ### headings (Slack shows literal "#" characters)
-- NEVER use **double asterisks** for bold (Slack uses *single asterisks*)
-- NEVER use [text](url) links (Slack uses <url|text> format)
-- NEVER use numbered lists (1. 2. 3.)
-- NEVER use standard bullet points (- or *). Use \u2022 for bullets.
-- Bold section headers with *single asterisks* on their own line
+ABSOLUTE PROHIBITIONS — the output is BROKEN if you include ANY of these:
+- # ## ### headings — Slack shows literal "#" characters
+- **double asterisks** — Slack uses *single asterisks* for bold
+- [text](url) links — Slack uses <url|text> format
+- Numbered lists (1. 2. 3.)
+- Standard bullet points (- or *)
+- "Counter-points", "SafelyYou Counter", "Our response", or any defensive analysis
+- "Recommended Action", "Suggested Action", "Next Steps", or ANY recommendations
+- "Specifics:" sub-sections or multi-paragraph analysis per item
+- Week-over-week tables or comparison data
 
-CONTENT RULES:
-- Report facts only. Do NOT include recommendations, suggested actions, or "what to do" items.
-- Each bullet should state what happened: who did what, specific numbers, specific claims.
-- Name specific companies, people, dollar amounts, percentages, products.
-- No filler, no editorializing, no "this means..." analysis in bullets.
+WHAT TO WRITE:
+- One-line bullets only. Each bullet = one fact: who did what + one specific number/claim/detail.
+- 2-3 bullets per category. No more.
+- Use \u2022 (bullet character) for every bullet.
+- Keep the TOTAL output under 1500 characters. The example below is the target length.
 
-STRUCTURE (follow this exactly):
+COPY THIS STRUCTURE EXACTLY (replace bracketed content with real intel):
 
 :rotating_light: Weekly Marketing Intelligence Report - ${weekEnd}
 
 *:red_circle: IMMEDIATE THREATS:*
-\u2022 [specific threat — who, what, specific claim or number]
-\u2022 [specific threat]
+\u2022 [Competitor] [specific claim or action] — [one key detail]
+\u2022 [Competitor] [specific claim or action] — [one key detail]
 
 *:large_yellow_circle: COMPETITIVE ESCALATION:*
-\u2022 [specific competitive move — who, what, specific detail]
-\u2022 [specific competitive move]
+\u2022 [Competitor] [specific move] — [one key detail]
+\u2022 [Competitor] [specific move] — [one key detail]
+\u2022 [Competitor] [specific move] — [one key detail]
 
 *:large_green_circle: STRATEGIC OPPORTUNITIES:*
-\u2022 [specific opportunity — what competitor gap or market signal]
-\u2022 [specific opportunity]
+\u2022 [Market signal or competitor gap] — [one key detail]
+\u2022 [Market signal or competitor gap] — [one key detail]
 
 *:newspaper: INDUSTRY MOVES:*
-\u2022 [specific industry development — who, what, impact]
-\u2022 [specific industry development]
+\u2022 [Industry development] — [one key detail]
+\u2022 [Industry development] — [one key detail]
 
 :bar_chart: Full Report: {report_url}
-Data Period: ${weekStart} to ${weekEnd} | Events Tracked: ${typedEvents.length} | Industry Items: ${allIndustryItems.length}
+Data Period: ${weekStart} to ${weekEnd} | Events: ${typedEvents.length} | Industry: ${allIndustryItems.length}
 
-EXAMPLE (match this tone and density):
+EXAMPLE OUTPUT (match this length and tone exactly — this is ~1200 characters):
+
 :rotating_light: Weekly Marketing Intelligence Report - 01/19/2026
 
 *:red_circle: IMMEDIATE THREATS:*
@@ -404,14 +408,14 @@ EXAMPLE (match this tone and density):
 
 *:large_green_circle: STRATEGIC OPPORTUNITIES:*
 \u2022 Competitors avoiding direct safety competition, focusing on wellness (Nobi circadian lighting)
-\u2022 Partnership strategies emerging (CarePredict + Kami) — our native platform is a differentiator
+\u2022 Partnership strategies emerging (CarePredict + Kami) — native platform is a differentiator
 
 *:newspaper: INDUSTRY MOVES:*
 \u2022 Sage expanding to ASHA conference — geographic/market expansion signal
 \u2022 Senior living occupancy hits 87.2% per NIC data — demand environment strengthening
 
 :bar_chart: Full Report: https://example.com/digest/21
-Data Period: Jan 13-19, 2026 | Events Tracked: 15 | Industry Items: 8
+Data Period: Jan 13-19, 2026 | Events: 15 | Industry: 8
 
 REMINDER: Start your response with "## Competitive Intel" — not a date, not a title, not a summary.`;
 
