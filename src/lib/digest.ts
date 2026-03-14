@@ -351,24 +351,67 @@ SECTION 2: ## Industry News
 
 SECTION 3: ## Slack Executive Summary
 - This section is posted DIRECTLY into Slack via the API. It uses Slack mrkdwn, NOT standard markdown.
-- Max 2985 characters
-- NEVER use # ## ### headings (Slack renders them as literal "#" text)
+- Max 2985 characters. Match the length and density of the example below — do not pad.
+
+FORMATTING RULES (violating these breaks Slack rendering):
+- NEVER use # ## ### headings (Slack shows literal "#" characters)
 - NEVER use **double asterisks** for bold (Slack uses *single asterisks*)
-- NEVER use [text](url) links (Slack uses <url|text>)
-- NEVER use numbered lists or standard bullet points (- or *)
-- Use colored circle emojis as bullets:
-  \ud83d\udd34 = high importance / threat / urgent
-  \ud83d\udfe1 = moderate importance / watch / notable
-  \ud83d\udfe2 = opportunity / positive / good news
-- Structure:
-  *\ud83c\udfaf Competitive Intel* (bold with single asterisks, on its own line)
-  emoji bullets for competitive items (3-6 bullets)
-  *\ud83d\udcf0 Industry News* (bold with single asterisks, on its own line)
-  emoji bullets for industry items (3-6 bullets)
-  *\ud83d\udca1 Bottom Line* (bold with single asterisks, on its own line)
-  1-2 sentences strategic takeaway
-- Be concise. No filler. Only actionable intelligence.
-- Bold competitor names and key terms with *single asterisks*
+- NEVER use [text](url) links (Slack uses <url|text> format)
+- NEVER use numbered lists (1. 2. 3.)
+- NEVER use standard bullet points (- or *). Use \u2022 for bullets.
+- Bold section headers with *single asterisks* on their own line
+
+CONTENT RULES:
+- Report facts only. Do NOT include recommendations, suggested actions, or "what to do" items.
+- Each bullet should state what happened: who did what, specific numbers, specific claims.
+- Name specific companies, people, dollar amounts, percentages, products.
+- No filler, no editorializing, no "this means..." analysis in bullets.
+
+STRUCTURE (follow this exactly):
+
+:rotating_light: Weekly Marketing Intelligence Report - ${weekEnd}
+
+*:red_circle: IMMEDIATE THREATS:*
+\u2022 [specific threat — who, what, specific claim or number]
+\u2022 [specific threat]
+
+*:large_yellow_circle: COMPETITIVE ESCALATION:*
+\u2022 [specific competitive move — who, what, specific detail]
+\u2022 [specific competitive move]
+
+*:large_green_circle: STRATEGIC OPPORTUNITIES:*
+\u2022 [specific opportunity — what competitor gap or market signal]
+\u2022 [specific opportunity]
+
+*:newspaper: INDUSTRY MOVES:*
+\u2022 [specific industry development — who, what, impact]
+\u2022 [specific industry development]
+
+:bar_chart: Full Report: {report_url}
+Data Period: ${weekStart} to ${weekEnd} | Events Tracked: ${typedEvents.length} | Industry Items: ${allIndustryItems.length}
+
+EXAMPLE (match this tone and density):
+:rotating_light: Weekly Marketing Intelligence Report - 01/19/2026
+
+*:red_circle: IMMEDIATE THREATS:*
+\u2022 VirtuSense claiming 95% false alarm reduction — directly challenges our accuracy positioning
+\u2022 CarePredict announcing "industry's first unified fall detection" with Kami Vision partnership
+
+*:large_yellow_circle: COMPETITIVE ESCALATION:*
+\u2022 Inspiren founder featured in Forbes on AI adoption in senior living — positioning as thought leader
+\u2022 Inspiren scaling: hiring Implementation Manager ($150-170K) + Staff Embedded Systems Engineer
+\u2022 Essence Group launching AI-driven behavioral analysis — new entrant in our space
+
+*:large_green_circle: STRATEGIC OPPORTUNITIES:*
+\u2022 Competitors avoiding direct safety competition, focusing on wellness (Nobi circadian lighting)
+\u2022 Partnership strategies emerging (CarePredict + Kami) — our native platform is a differentiator
+
+*:newspaper: INDUSTRY MOVES:*
+\u2022 Sage expanding to ASHA conference — geographic/market expansion signal
+\u2022 Senior living occupancy hits 87.2% per NIC data — demand environment strengthening
+
+:bar_chart: Full Report: https://example.com/digest/21
+Data Period: Jan 13-19, 2026 | Events Tracked: 15 | Industry Items: 8
 
 REMINDER: Start your response with "## Competitive Intel" — not a date, not a title, not a summary.`;
 
