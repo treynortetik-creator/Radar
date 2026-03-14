@@ -7,26 +7,41 @@ function getCompetitorName(comp: unknown): string {
   return (comp as { name?: string })?.name || 'Unknown';
 }
 
+// Get ISO week start (Monday) for a date string
+function getWeekStart(dateStr: string): string {
+  const d = new Date(dateStr);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // Monday
+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
+  return monday.toISOString().split('T')[0];
+}
+
 export async function GET() {
   // Fetch all events with competitor info for aggregation
-  const { data: events, error } = await supabaseAdmin
-    .from('competitor_events')
-    .select(`
-      priority_tier,
-      theme,
-      route_to,
-      published_at,
-      competitors!competitor_events_competitor_id_fkey (
-        name
-      )
-    `);
+  const [eventsResult, industryResult] = await Promise.all([
+    supabaseAdmin
+      .from('competitor_events')
+      .select(`
+        priority_tier,
+        theme,
+        route_to,
+        published_at,
+        competitors!competitor_events_competitor_id_fkey (
+          name
+        )
+      `),
+    supabaseAdmin
+      .from('industry_news')
+      .select('source_name', { count: 'exact' }),
+  ]);
 
-  if (error) {
-    console.error('Supabase error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (eventsResult.error) {
+    console.error('Supabase error:', eventsResult.error);
+    return NextResponse.json({ error: eventsResult.error.message }, { status: 500 });
   }
 
-  const allEvents = events || [];
+  // Filter out "Industry News" pseudo-competitor — it's not a real competitor
+  const allEvents = (eventsResult.data || []).filter(e => getCompetitorName(e.competitors) !== 'Industry News');
 
   // Tier distribution
   const tierCounts: Record<string, number> = {};
@@ -59,25 +74,45 @@ export async function GET() {
     .map(([competitor, count]) => ({ competitor, count }))
     .sort((a, b) => b.count - a.count);
 
-  // Timeline (events by date and competitor)
-  const timelineMap: Record<string, Record<string, number>> = {};
+  // Weekly timeline (events by week and competitor)
+  const weeklyMap: Record<string, Record<string, number>> = {};
   for (const e of allEvents) {
     if (!e.published_at) continue;
-    const date = e.published_at.split('T')[0]; // Extract date part
+    const week = getWeekStart(e.published_at);
     const name = getCompetitorName(e.competitors);
 
-    if (!timelineMap[date]) timelineMap[date] = {};
-    timelineMap[date][name] = (timelineMap[date][name] || 0) + 1;
+    if (!weeklyMap[week]) weeklyMap[week] = {};
+    weeklyMap[week][name] = (weeklyMap[week][name] || 0) + 1;
   }
-  const timeline = Object.entries(timelineMap)
-    .flatMap(([date, competitors]) =>
-      Object.entries(competitors).map(([competitor, count]) => ({
-        date,
-        competitor,
-        count,
-      }))
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
+
+  // Build weekly timeline as flat records with one key per competitor
+  const allCompetitors = Object.keys(competitorCounts).sort();
+  const weeklyTimeline = Object.keys(weeklyMap)
+    .sort()
+    .map(week => {
+      const row: Record<string, string | number> = { week };
+      for (const comp of allCompetitors) {
+        row[comp] = weeklyMap[week][comp] || 0;
+      }
+      return row;
+    });
+
+  // Competitor × Theme matrix
+  const matrixMap: Record<string, Record<string, number>> = {};
+  for (const e of allEvents) {
+    const name = getCompetitorName(e.competitors);
+    const theme = e.theme || 'Unknown';
+    if (!matrixMap[name]) matrixMap[name] = {};
+    matrixMap[name][theme] = (matrixMap[name][theme] || 0) + 1;
+  }
+  const allThemes = [...new Set(allEvents.map(e => e.theme || 'Unknown'))].sort();
+  const competitorThemeMatrix = allCompetitors.map(competitor => ({
+    competitor,
+    themes: allThemes.map(theme => ({
+      theme,
+      count: matrixMap[competitor]?.[theme] || 0,
+    })),
+  }));
 
   // Route distribution
   const routeCounts: Record<string, number> = {};
@@ -89,12 +124,26 @@ export async function GET() {
     .map(([route_to, count]) => ({ route_to, count }))
     .sort((a, b) => b.count - a.count);
 
+  // Industry news stats
+  const industryNewsCount = industryResult.count || 0;
+  const industrySourceCounts: Record<string, number> = {};
+  for (const r of (industryResult.data || [])) {
+    const src = r.source_name || 'Unknown';
+    industrySourceCounts[src] = (industrySourceCounts[src] || 0) + 1;
+  }
+  const industryNewsSources = Object.entries(industrySourceCounts)
+    .map(([source, count]) => ({ source, count }))
+    .sort((a, b) => b.count - a.count);
+
   return NextResponse.json({
     tierDistribution,
     themeDistribution,
     competitorActivity,
-    timeline,
+    weeklyTimeline,
+    competitorThemeMatrix,
     routeDistribution,
     totalEvents: allEvents.length,
+    industryNewsCount,
+    industryNewsSources,
   });
 }

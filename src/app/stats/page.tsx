@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { LoadingRadar, AnalyticsIcon, TargetIcon, ShieldIcon, SignalIcon } from '@/components/icons';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell,
+  AreaChart, Area, Legend,
+} from 'recharts';
+import { LoadingRadar, AnalyticsIcon, TargetIcon, ShieldIcon, SignalIcon, GlobeIcon } from '@/components/icons';
 
 const COMPETITOR_COLORS: Record<string, string> = {
   'Inspiren': '#CC4125',
@@ -11,6 +15,7 @@ const COMPETITOR_COLORS: Record<string, string> = {
   'Amba': '#FF9900',
   'Nobi': '#B7E1CD',
   'CarePredict': '#F9CB9C',
+  'Teton': '#5B9BD5',
 };
 
 const TIER_COLORS: Record<string, string> = {
@@ -27,18 +32,21 @@ interface StatsData {
   themeDistribution: { theme: string; count: number }[];
   competitorActivity: { competitor: string; count: number }[];
   routeDistribution: { route_to: string; count: number }[];
-  timeline: { date: string; competitor: string; count: number }[];
+  weeklyTimeline: Record<string, string | number>[];
+  competitorThemeMatrix: { competitor: string; themes: { theme: string; count: number }[] }[];
   totalEvents: number;
+  industryNewsCount: number;
+  industryNewsSources: { source: string; count: number }[];
 }
 
-function ChartCard({ 
-  title, 
-  subtitle, 
+function ChartCard({
+  title,
+  subtitle,
   children,
   className = '',
-}: { 
-  title: string; 
-  subtitle?: string; 
+}: {
+  title: string;
+  subtitle?: string;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -53,21 +61,21 @@ function ChartCard({
   );
 }
 
-function MiniStatCard({ 
-  label, 
-  value, 
+function MiniStatCard({
+  label,
+  value,
   color = '#dbc55e',
   icon: Icon,
-}: { 
-  label: string; 
-  value: number | string; 
+}: {
+  label: string;
+  value: number | string;
   color?: string;
   icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <div 
+    <div
       className="stat-card relative overflow-hidden"
-      style={{ 
+      style={{
         background: `linear-gradient(135deg, ${color}08 0%, transparent 100%)`,
         borderColor: `${color}20`,
       }}
@@ -97,6 +105,29 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     </div>
   );
 };
+
+function HeatmapCell({ count, max }: { count: number; max: number }) {
+  const intensity = max > 0 ? count / max : 0;
+  const bg = count === 0
+    ? 'bg-slate-800/30'
+    : '';
+  const style = count > 0
+    ? {
+        backgroundColor: `rgba(219, 197, 94, ${0.1 + intensity * 0.7})`,
+        color: intensity > 0.5 ? '#1a1f16' : '#aeb786',
+      }
+    : {};
+
+  return (
+    <div
+      className={`flex items-center justify-center text-xs font-medium rounded h-8 min-w-[40px] transition-colors ${bg}`}
+      style={style}
+      title={`${count} events`}
+    >
+      {count > 0 ? count : ''}
+    </div>
+  );
+}
 
 export default function StatsPage() {
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -128,6 +159,19 @@ export default function StatsPage() {
   // Most active competitor
   const topCompetitor = stats.competitorActivity[0];
 
+  // Get competitor names for the area chart
+  const competitors = stats.competitorActivity.map(c => c.competitor);
+
+  // Get max value for heatmap color scaling
+  const heatmapMax = Math.max(
+    ...stats.competitorThemeMatrix.flatMap(r => r.themes.map(t => t.count)),
+    1
+  );
+
+  // Get theme labels from matrix (use top 6 to keep readable)
+  const allThemes = stats.competitorThemeMatrix[0]?.themes.map(t => t.theme) || [];
+  const topThemes = stats.themeDistribution.slice(0, 6).map(t => t.theme);
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
@@ -140,18 +184,71 @@ export default function StatsPage() {
           <p className="text-sm text-slate-500">Intelligence overview and competitive landscape</p>
         </div>
       </div>
-      
+
       {/* Summary Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <MiniStatCard label="Total Events" value={stats.totalEvents} color="#dbc55e" icon={TargetIcon} />
         <MiniStatCard label="High+ Threats" value={criticalHigh} color="#ff5a4f" icon={ShieldIcon} />
         <MiniStatCard label="Threat Rate" value={`${threatRate}%`} color="#da9a47" icon={SignalIcon} />
-        <MiniStatCard 
-          label="Top Competitor" 
-          value={topCompetitor?.competitor || '—'} 
-          color={COMPETITOR_COLORS[topCompetitor?.competitor] || '#86a954'} 
+        <MiniStatCard
+          label="Top Competitor"
+          value={topCompetitor?.competitor || '—'}
+          color={COMPETITOR_COLORS[topCompetitor?.competitor] || '#86a954'}
+        />
+        <MiniStatCard
+          label="Industry Articles"
+          value={stats.industryNewsCount}
+          color="#64b5f6"
+          icon={GlobeIcon}
         />
       </div>
+
+      {/* Trend Over Time — full width */}
+      {stats.weeklyTimeline.length > 1 && (
+        <ChartCard title="Activity Trend" subtitle="Weekly event volume by competitor">
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart data={stats.weeklyTimeline} margin={{ left: 0, right: 10, top: 5, bottom: 5 }}>
+              <defs>
+                {competitors.map(comp => (
+                  <linearGradient key={comp} id={`grad-${comp.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COMPETITOR_COLORS[comp] || '#64748b'} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={COMPETITOR_COLORS[comp] || '#64748b'} stopOpacity={0.05} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2d3a21" />
+              <XAxis
+                dataKey="week"
+                tick={{ fill: '#718055', fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: string) => {
+                  const d = new Date(v + 'T00:00:00Z');
+                  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+                }}
+              />
+              <YAxis tick={{ fill: '#718055', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend
+                wrapperStyle={{ fontSize: 11, color: '#aeb786' }}
+                iconType="circle"
+                iconSize={8}
+              />
+              {competitors.map(comp => (
+                <Area
+                  key={comp}
+                  type="monotone"
+                  dataKey={comp}
+                  stackId="1"
+                  stroke={COMPETITOR_COLORS[comp] || '#64748b'}
+                  fill={`url(#grad-${comp.replace(/\s/g, '')})`}
+                  strokeWidth={1.5}
+                />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -203,7 +300,7 @@ export default function StatsPage() {
                   <div key={t.priority_tier}>
                     <div className="flex justify-between items-center mb-1.5">
                       <div className="flex items-center gap-2">
-                        <span 
+                        <span
                           className="w-2 h-2 rounded-full"
                           style={{ backgroundColor: color }}
                         />
@@ -216,13 +313,13 @@ export default function StatsPage() {
                       </span>
                     </div>
                     <div className="h-2 bg-slate-800/60 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full rounded-full transition-all duration-700 ease-out"
-                        style={{ 
-                          width: `${pct}%`, 
+                        style={{
+                          width: `${pct}%`,
                           backgroundColor: color,
                           boxShadow: `0 0 10px ${color}40`,
-                        }} 
+                        }}
                       />
                     </div>
                   </div>
@@ -266,6 +363,47 @@ export default function StatsPage() {
           </ResponsiveContainer>
         </ChartCard>
       </div>
+
+      {/* Competitor × Theme Heatmap — full width */}
+      {stats.competitorThemeMatrix.length > 0 && topThemes.length > 0 && (
+        <ChartCard title="Competitor Focus Areas" subtitle="Event count by competitor and theme">
+          <div className="overflow-x-auto">
+            <div className="min-w-[600px]">
+              {/* Header row */}
+              <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: `120px repeat(${topThemes.length}, 1fr)` }}>
+                <div />
+                {topThemes.map(theme => (
+                  <div key={theme} className="text-[10px] text-slate-500 text-center font-medium truncate px-1">
+                    {theme}
+                  </div>
+                ))}
+              </div>
+              {/* Data rows */}
+              {stats.competitorThemeMatrix.map(row => (
+                <div
+                  key={row.competitor}
+                  className="grid gap-1 mb-1"
+                  style={{ gridTemplateColumns: `120px repeat(${topThemes.length}, 1fr)` }}
+                >
+                  <div className="flex items-center gap-2 pr-2">
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: COMPETITOR_COLORS[row.competitor] || '#64748b' }}
+                    />
+                    <span className="text-xs text-slate-300 font-medium truncate">{row.competitor}</span>
+                  </div>
+                  {topThemes.map(theme => {
+                    const cell = row.themes.find(t => t.theme === theme);
+                    return (
+                      <HeatmapCell key={theme} count={cell?.count || 0} max={heatmapMax} />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+        </ChartCard>
+      )}
     </div>
   );
 }
