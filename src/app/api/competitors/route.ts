@@ -77,7 +77,9 @@ export async function GET() {
   }
 
   // Convert to array and calculate averages
+  // Exclude "Industry News" pseudo-competitor — it has its own dedicated page at /industry
   const competitors = Object.values(competitorStats)
+    .filter(stats => stats.competitor !== 'Industry News')
     .map(stats => ({
       competitor: stats.competitor,
       competitor_id: stats.competitor_id,
